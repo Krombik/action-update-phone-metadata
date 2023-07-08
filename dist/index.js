@@ -49,18 +49,32 @@ function run() {
             // const branchName = core.getInput('branch-name');
             const octokit = github.getOctokit(myToken).rest;
             try {
+                // try {
+                //   await octokit.repos.getContent({
+                //     owner: 'google',
+                //     repo: 'libphonenumber',
+                //     path: 'resources/PhoneNumberMetadata.xml',
+                //   });
+                //   core.info('metadata is successful');
+                // } catch (error: any) {
+                //   core.setFailed(`Error: ${error.message}`);
+                // }
+                const { owner, repo } = github.context.repo;
                 try {
-                    yield octokit.repos.getContent({
-                        owner: 'google',
-                        repo: 'libphonenumber',
-                        path: 'resources/PhoneNumberMetadata.xml',
-                    });
-                    core.info('metadata is successful');
+                    const fileContent = (yield octokit.repos.getContent({
+                        owner,
+                        repo,
+                        path: '.prettierrc',
+                    })).data;
+                    if (!('content' in fileContent)) {
+                        core.setFailed(`not a file`);
+                        return;
+                    }
+                    core.info(Buffer.from(fileContent.content, 'base64').toString('utf8'));
                 }
                 catch (error) {
                     core.setFailed(`Error: ${error.message}`);
                 }
-                const { owner, repo } = github.context.repo;
                 const baseBranch = 'main'; // The base branch you want to create the new branch from
                 const newBranch = 'new-branch'; // The name of the new branch you want to create
                 const filePath = 'file.txt'; // The path to the file you want to modify

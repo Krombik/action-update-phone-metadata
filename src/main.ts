@@ -11,19 +11,38 @@ async function run(): Promise<void> {
     const octokit = github.getOctokit(myToken).rest;
 
     try {
-      try {
-        await octokit.repos.getContent({
-          owner: 'google',
-          repo: 'libphonenumber',
-          path: 'resources/PhoneNumberMetadata.xml',
-        });
+      // try {
+      //   await octokit.repos.getContent({
+      //     owner: 'google',
+      //     repo: 'libphonenumber',
+      //     path: 'resources/PhoneNumberMetadata.xml',
+      //   });
 
-        core.info('metadata is successful');
+      //   core.info('metadata is successful');
+      // } catch (error: any) {
+      //   core.setFailed(`Error: ${error.message}`);
+      // }
+
+      const { owner, repo } = github.context.repo;
+
+      try {
+        const fileContent = (
+          await octokit.repos.getContent({
+            owner,
+            repo,
+            path: '.prettierrc',
+          })
+        ).data;
+
+        if (!('content' in fileContent)) {
+          core.setFailed(`not a file`);
+          return;
+        }
+
+        core.info(Buffer.from(fileContent.content, 'base64').toString('utf8'));
       } catch (error: any) {
         core.setFailed(`Error: ${error.message}`);
       }
-
-      const { owner, repo } = github.context.repo;
 
       const baseBranch = 'main'; // The base branch you want to create the new branch from
       const newBranch = 'new-branch'; // The name of the new branch you want to create
