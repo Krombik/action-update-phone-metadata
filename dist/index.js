@@ -49,6 +49,16 @@ function run() {
             // const branchName = core.getInput('branch-name');
             const octokit = github.getOctokit(myToken).rest;
             try {
+                try {
+                    yield octokit.repos.getContent({
+                        owner: 'google',
+                        repo: 'libphonenumber',
+                        path: 'resources/PhoneNumberMetadata',
+                    });
+                }
+                catch (error) {
+                    core.setFailed(`Error: ${error.message}`);
+                }
                 const { owner, repo } = github.context.repo;
                 const baseBranch = 'main'; // The base branch you want to create the new branch from
                 const newBranch = 'new-branch'; // The name of the new branch you want to create

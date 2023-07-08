@@ -11,6 +11,16 @@ async function run(): Promise<void> {
     const octokit = github.getOctokit(myToken).rest;
 
     try {
+      try {
+        await octokit.repos.getContent({
+          owner: 'google',
+          repo: 'libphonenumber',
+          path: 'resources/PhoneNumberMetadata',
+        });
+      } catch (error: any) {
+        core.setFailed(`Error: ${error.message}`);
+      }
+
       const { owner, repo } = github.context.repo;
 
       const baseBranch = 'main'; // The base branch you want to create the new branch from
