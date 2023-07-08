@@ -1,6 +1,5 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import crypto from 'crypto';
 
 async function run(): Promise<void> {
   core.info('it works');
@@ -27,26 +26,24 @@ async function run(): Promise<void> {
         })
       ).data;
 
-      if (!('sha' in fileContent)) {
+      if (!('content' in fileContent)) {
         return;
       }
 
-      const existingContentSHA = fileContent.sha;
+      const existingContent = Buffer.from(
+        fileContent.content,
+        'base64',
+      ).toString('utf8');
 
       // Step 2: Compare existing content with new content
       const newContent = 'New content'; // Replace with your desired content
 
-      const newContentSHA = crypto
-        .createHash('sha1')
-        .update(newContent)
-        .digest('hex');
+      core.info(existingContent);
 
-      core.info(existingContentSHA);
+      core.info(newContent);
 
-      core.info(newContentSHA);
-
-      if (existingContentSHA === newContentSHA) {
-        console.log(
+      if (existingContent === newContent) {
+        core.info(
           'Content is identical. Skipping commit and pull request creation.',
         );
         return;
@@ -73,7 +70,7 @@ async function run(): Promise<void> {
         path: filePath,
         message: 'Update file',
         content: updatedContent,
-        sha: existingContentSHA,
+        sha: fileContent.sha,
         branch: newBranch,
       });
 

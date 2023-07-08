@@ -38,13 +38,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7733));
 const github = __importStar(__nccwpck_require__(3695));
-const crypto_1 = __importDefault(__nccwpck_require__(6113));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         core.info('it works');
@@ -63,20 +59,16 @@ function run() {
                     repo,
                     path: filePath,
                 })).data;
-                if (!('sha' in fileContent)) {
+                if (!('content' in fileContent)) {
                     return;
                 }
-                const existingContentSHA = fileContent.sha;
+                const existingContent = Buffer.from(fileContent.content, 'base64').toString('utf8');
                 // Step 2: Compare existing content with new content
                 const newContent = 'New content'; // Replace with your desired content
-                const newContentSHA = crypto_1.default
-                    .createHash('sha1')
-                    .update(newContent)
-                    .digest('hex');
-                core.info(existingContentSHA);
-                core.info(newContentSHA);
-                if (existingContentSHA === newContentSHA) {
-                    console.log('Content is identical. Skipping commit and pull request creation.');
+                core.info(existingContent);
+                core.info(newContent);
+                if (existingContent === newContent) {
+                    core.info('Content is identical. Skipping commit and pull request creation.');
                     return;
                 }
                 // Step 3: Create a new branch
@@ -95,7 +87,7 @@ function run() {
                     path: filePath,
                     message: 'Update file',
                     content: updatedContent,
-                    sha: existingContentSHA,
+                    sha: fileContent.sha,
                     branch: newBranch,
                 });
                 core.info('file updated');
