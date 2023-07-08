@@ -62,6 +62,8 @@ async function run(): Promise<void> {
         ).data.commit.sha,
       });
 
+      core.info('ref created');
+
       // Step 4: Modify the file
       const updatedContent = Buffer.from(newContent, 'utf8').toString('base64');
 
@@ -74,6 +76,8 @@ async function run(): Promise<void> {
         sha: existingContentSHA,
         branch: newBranch,
       });
+
+      core.info('file updated');
 
       // Step 5: Create a new commit
       const commitMessage = 'Commit changes';
@@ -90,6 +94,8 @@ async function run(): Promise<void> {
         ],
       });
 
+      core.info('comitted');
+
       // Step 6: Create a pull request
       const pullRequestTitle = 'New Pull Request';
       const pullRequestBody = 'This is a new pull request';
@@ -102,7 +108,7 @@ async function run(): Promise<void> {
         base: baseBranch,
       });
 
-      console.log(`Pull request created: ${pullRequest.data.html_url}`);
+      core.info(`Pull request created: ${pullRequest.data.html_url}`);
     } catch (error: any) {
       core.setFailed(`Error: ${error.message}`);
     }

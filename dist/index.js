@@ -86,6 +86,7 @@ function run() {
                     ref: `refs/heads/${newBranch}`,
                     sha: (yield octokit.repos.getBranch({ owner, repo, branch: baseBranch })).data.commit.sha,
                 });
+                core.info('ref created');
                 // Step 4: Modify the file
                 const updatedContent = Buffer.from(newContent, 'utf8').toString('base64');
                 yield octokit.repos.createOrUpdateFileContents({
@@ -97,6 +98,7 @@ function run() {
                     sha: existingContentSHA,
                     branch: newBranch,
                 });
+                core.info('file updated');
                 // Step 5: Create a new commit
                 const commitMessage = 'Commit changes';
                 yield octokit.git.createCommit({
@@ -109,6 +111,7 @@ function run() {
                             .data.commit.sha,
                     ],
                 });
+                core.info('comitted');
                 // Step 6: Create a pull request
                 const pullRequestTitle = 'New Pull Request';
                 const pullRequestBody = 'This is a new pull request';
@@ -120,7 +123,7 @@ function run() {
                     head: newBranch,
                     base: baseBranch,
                 });
-                console.log(`Pull request created: ${pullRequest.data.html_url}`);
+                core.info(`Pull request created: ${pullRequest.data.html_url}`);
             }
             catch (error) {
                 core.setFailed(`Error: ${error.message}`);
