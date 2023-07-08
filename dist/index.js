@@ -47,6 +47,7 @@ const github = __importStar(__nccwpck_require__(3695));
 const crypto_1 = __importDefault(__nccwpck_require__(6113));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
+        core.info('it works');
         try {
             const myToken = core.getInput('my-token');
             // const branchName = core.getInput('branch-name');

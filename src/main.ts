@@ -3,6 +3,7 @@ import * as github from '@actions/github';
 import crypto from 'crypto';
 
 async function run(): Promise<void> {
+  core.info('it works');
   try {
     const myToken = core.getInput('my-token');
 
