@@ -53,8 +53,9 @@ function run() {
                     yield octokit.repos.getContent({
                         owner: 'google',
                         repo: 'libphonenumber',
-                        path: 'resources/PhoneNumberMetadata',
+                        path: 'resources/PhoneNumberMetadata.xml',
                     });
+                    core.info('metadata is successful');
                 }
                 catch (error) {
                     core.setFailed(`Error: ${error.message}`);

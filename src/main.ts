@@ -15,8 +15,10 @@ async function run(): Promise<void> {
         await octokit.repos.getContent({
           owner: 'google',
           repo: 'libphonenumber',
-          path: 'resources/PhoneNumberMetadata',
+          path: 'resources/PhoneNumberMetadata.xml',
         });
+
+        core.info('metadata is successful');
       } catch (error: any) {
         core.setFailed(`Error: ${error.message}`);
       }
