@@ -500,13 +500,11 @@ async function run(): Promise<void> {
         await octokit.repos.getBranch({ ...myRepo, branch: baseBranch })
       ).data.commit.sha;
 
-      const kek = (
-        await octokit.git.createRef({
-          ...myRepo,
-          ref: `refs/heads/${newBranch}`,
-          sha: baseSHA,
-        })
-      ).data;
+      await octokit.git.createRef({
+        ...myRepo,
+        ref: `refs/heads/${newBranch}`,
+        sha: baseSHA,
+      });
 
       const newTreeSHA = (
         await octokit.git.createTree({
@@ -520,7 +518,7 @@ async function run(): Promise<void> {
 
       await octokit.git.updateRef({
         ...myRepo,
-        ref: kek.ref,
+        ref: `heads/${newBranch}`,
         sha: (
           await octokit.git.createCommit({
             ...myRepo,
