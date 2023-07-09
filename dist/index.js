@@ -294,9 +294,9 @@ function run() {
                 const newBranch = 'next';
                 const baseSHA = (yield octokit.repos.getBranch(Object.assign(Object.assign({}, myRepo), { branch: baseBranch }))).data.commit.sha;
                 const kek = (yield octokit.git.createRef(Object.assign(Object.assign({}, myRepo), { ref: `refs/heads/${newBranch}`, sha: baseSHA }))).data;
-                const newTreeSHA = (yield octokit.git.createTree(Object.assign(Object.assign({}, myRepo), { tree: files, base_tree: kek.object.sha }))).data.sha;
+                const newTreeSHA = (yield octokit.git.createTree(Object.assign(Object.assign({}, myRepo), { tree: files, base_tree: baseSHA }))).data.sha;
                 const commitMessage = 'Commit changes';
-                yield octokit.git.updateRef(Object.assign(Object.assign({}, myRepo), { ref: kek.ref, sha: (yield octokit.git.createCommit(Object.assign(Object.assign({}, myRepo), { message: commitMessage, tree: newTreeSHA, parents: [kek.object.sha] }))).data.sha }));
+                yield octokit.git.updateRef(Object.assign(Object.assign({}, myRepo), { ref: kek.ref, sha: (yield octokit.git.createCommit(Object.assign(Object.assign({}, myRepo), { message: commitMessage, tree: newTreeSHA, parents: [baseSHA] }))).data.sha }));
                 const pullRequestTitle = 'New Pull Request';
                 const pullRequestBody = 'This is a new pull request';
                 yield octokit.pulls.create(Object.assign(Object.assign({}, myRepo), { title: pullRequestTitle, body: pullRequestBody, head: newBranch, base: baseBranch }));

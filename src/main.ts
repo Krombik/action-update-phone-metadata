@@ -512,7 +512,7 @@ async function run(): Promise<void> {
         await octokit.git.createTree({
           ...myRepo,
           tree: files,
-          base_tree: kek.object.sha,
+          base_tree: baseSHA,
         })
       ).data.sha;
 
@@ -526,7 +526,7 @@ async function run(): Promise<void> {
             ...myRepo,
             message: commitMessage,
             tree: newTreeSHA,
-            parents: [kek.object.sha],
+            parents: [baseSHA],
           })
         ).data.sha,
       });
