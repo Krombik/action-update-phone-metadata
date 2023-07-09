@@ -501,21 +501,19 @@ async function run(): Promise<void> {
         })
       ).data.object.sha;
 
-      for (let i = 0; i < files.length; i++) {
-        await octokit.repos.createOrUpdateFileContents({
+      const newTreeSHA = (
+        await octokit.git.createTree({
           ...myRepo,
-          ...files[i],
-          message: 'Update file',
-          branch: newBranch,
-        });
-      }
+          tree: files,
+        })
+      ).data.sha;
 
       const commitMessage = 'Commit changes';
 
       await octokit.git.createCommit({
         ...myRepo,
         message: commitMessage,
-        tree: commitSHA,
+        tree: newTreeSHA,
         parents: [commitSHA],
       });
 

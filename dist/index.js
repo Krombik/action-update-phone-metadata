@@ -305,11 +305,9 @@ function run() {
             if (files.length) {
                 const newBranch = 'next';
                 const commitSHA = (yield octokit.git.createRef(Object.assign(Object.assign({}, myRepo), { ref: `refs/heads/${newBranch}`, sha: (yield octokit.repos.getBranch(Object.assign(Object.assign({}, myRepo), { branch: baseBranch }))).data.commit.sha }))).data.object.sha;
-                for (let i = 0; i < files.length; i++) {
-                    yield octokit.repos.createOrUpdateFileContents(Object.assign(Object.assign(Object.assign({}, myRepo), files[i]), { message: 'Update file', branch: newBranch }));
-                }
+                const newTreeSHA = (yield octokit.git.createTree(Object.assign(Object.assign({}, myRepo), { tree: files }))).data.sha;
                 const commitMessage = 'Commit changes';
-                yield octokit.git.createCommit(Object.assign(Object.assign({}, myRepo), { message: commitMessage, tree: commitSHA, parents: [commitSHA] }));
+                yield octokit.git.createCommit(Object.assign(Object.assign({}, myRepo), { message: commitMessage, tree: newTreeSHA, parents: [commitSHA] }));
                 const pullRequestTitle = 'New Pull Request';
                 const pullRequestBody = 'This is a new pull request';
                 yield octokit.pulls.create(Object.assign(Object.assign({}, myRepo), { title: pullRequestTitle, body: pullRequestBody, head: newBranch, base: baseBranch }));
