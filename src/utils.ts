@@ -1,5 +1,4 @@
 import { format } from 'prettier';
-import { type getOctokit } from '@actions/github';
 import axios from 'axios';
 
 export const handleUnique = <K, T>() => {
@@ -43,36 +42,16 @@ export const handleUnique = <K, T>() => {
 
 export const handleGenerate = (
   prettierConfig: any,
-  octokit: ReturnType<typeof getOctokit>['rest'],
   repo: Repo,
   brunch: string,
 ) => {
   const COMMENT = `// GENERATED FILE - DO NOT EDIT\n\n// This file has been automatically generated. Any modifications made to this file will be overwritten the next time it is regenerated. Please refrain from editing this file directly.\n\n`;
 
   type File = {
-    /** @description The file referenced in the tree. */
     path?: string;
-    /**
-     * @description The file mode; one of `100644` for file (blob), `100755` for executable (blob), `040000` for subdirectory (tree), `160000` for submodule (commit), or `120000` for a blob that specifies the path of a symlink.
-     * @enum {string}
-     */
     mode?: '100644' | '100755' | '040000' | '160000' | '120000';
-    /**
-     * @description Either `blob`, `tree`, or `commit`.
-     * @enum {string}
-     */
     type?: 'blob' | 'tree' | 'commit';
-    /**
-     * @description The SHA1 checksum ID of the object in the tree. Also called `tree.sha`. If the value is `null` then the file will be deleted.
-     *
-     * **Note:** Use either `tree.sha` or `content` to specify the contents of the entry. Using both `tree.sha` and `content` will return an error.
-     */
     sha?: string | null;
-    /**
-     * @description The content you want this file to have. GitHub will write this blob out and use that SHA for this entry. Use either this, or `tree.sha`.
-     *
-     * **Note:** Use either `tree.sha` or `content` to specify the contents of the entry. Using both `tree.sha` and `content` will return an error.
-     */
     content?: string;
   };
 
@@ -92,19 +71,6 @@ export const handleGenerate = (
           type: 'blob',
         };
 
-        if (prevFile) {
-          const { data } = await octokit.repos.getContent({
-            ...repo,
-            path,
-          });
-
-          if (!('sha' in data)) {
-            throw new Error(`no sha in ${path}`);
-          }
-
-          file.sha = data.sha;
-        }
-
         files.push(file);
       }
     },
@@ -119,6 +85,7 @@ export const getFile = async <T extends boolean>(
   required: T,
   repo: Repo,
   brunch: string,
+  attempt = 4,
 ): Promise<T extends false ? string | undefined : string> => {
   try {
     const { data } = await axios.get(
@@ -132,7 +99,13 @@ export const getFile = async <T extends boolean>(
 
     return data;
   } catch (error: any) {
-    if (!required && error.response.status === 404) {
+    const { status } = error.response;
+
+    if (status === 503 && attempt) {
+      return getFile(filePath, required, repo, brunch, attempt - 1);
+    }
+
+    if (!required && status === 404) {
       return undefined!;
     }
 

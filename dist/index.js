@@ -54,7 +54,7 @@ function run() {
         const octokit = github.getOctokit(core.getInput('my-token')).rest;
         const myRepo = github.context.repo;
         try {
-            const { files, addFile } = (0, utils_1.handleGenerate)(JSON.parse(yield (0, utils_1.getFile)('.prettierrc', true, myRepo, baseBranch)), octokit, myRepo, baseBranch);
+            const { files, addFile } = (0, utils_1.handleGenerate)(JSON.parse(yield (0, utils_1.getFile)('.prettierrc', true, myRepo, baseBranch)), myRepo, baseBranch);
             core.info('prettier config loaded');
             const [withoutFormatObj, addToWithoutFormatObj] = (0, utils_1.handleUnique)();
             const [formatObj, addToFormatObj] = (0, utils_1.handleUnique)();
@@ -364,7 +364,7 @@ const handleUnique = () => {
     ];
 };
 exports.handleUnique = handleUnique;
-const handleGenerate = (prettierConfig, octokit, repo, brunch) => {
+const handleGenerate = (prettierConfig, repo, brunch) => {
     const COMMENT = `// GENERATED FILE - DO NOT EDIT\n\n// This file has been automatically generated. Any modifications made to this file will be overwritten the next time it is regenerated. Please refrain from editing this file directly.\n\n`;
     const files = [];
     return {
@@ -379,13 +379,6 @@ const handleGenerate = (prettierConfig, octokit, repo, brunch) => {
                         mode: '100644',
                         type: 'blob',
                     };
-                    if (prevFile) {
-                        const { data } = yield octokit.repos.getContent(Object.assign(Object.assign({}, repo), { path }));
-                        if (!('sha' in data)) {
-                            throw new Error(`no sha in ${path}`);
-                        }
-                        file.sha = data.sha;
-                    }
                     files.push(file);
                 }
             });
@@ -394,7 +387,7 @@ const handleGenerate = (prettierConfig, octokit, repo, brunch) => {
     };
 };
 exports.handleGenerate = handleGenerate;
-const getFile = (filePath, required, repo, brunch) => __awaiter(void 0, void 0, void 0, function* () {
+const getFile = (filePath, required, repo, brunch, attempt = 4) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { data } = yield axios_1.default.get(`https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${brunch}/${filePath}`, { transformResponse: a => a });
         if (!data) {
@@ -403,7 +396,11 @@ const getFile = (filePath, required, repo, brunch) => __awaiter(void 0, void 0, 
         return data;
     }
     catch (error) {
-        if (!required && error.response.status === 404) {
+        const { status } = error.response;
+        if (status === 503 && attempt) {
+            return (0, exports.getFile)(filePath, required, repo, brunch, attempt - 1);
+        }
+        if (!required && status === 404) {
             return undefined;
         }
         throw new Error(`${filePath} failed, ${error.message}`);

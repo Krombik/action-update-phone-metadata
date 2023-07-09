@@ -60,7 +60,6 @@ async function run(): Promise<void> {
   try {
     const { files, addFile } = handleGenerate(
       JSON.parse(await getFile('.prettierrc', true, myRepo, baseBranch)),
-      octokit,
       myRepo,
       baseBranch,
     );
