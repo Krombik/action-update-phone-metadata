@@ -58,7 +58,7 @@ async function run(): Promise<void> {
 
   const octokit = github.getOctokit(core.getInput('my-token')).rest;
 
-  core.info((await fs.readFile('./.prettierrc')).toString());
+  core.info((await fs.readdir('./')).join(','));
 
   return;
 
