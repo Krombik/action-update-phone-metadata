@@ -69,19 +69,22 @@ function run() {
                 skip_records_with_empty_values: true,
             };
             const googleRepo = { owner: 'google', repo: 'libphonenumber' };
-            const trr = (yield getFile('resources/metadata/metadata.csv', true, googleRepo)).content;
-            const metadata = (0, sync_1.parse)(trr, Object.assign(Object.assign({}, parserOptions), { onRecord(record) {
+            const metadata = (0, sync_1.parse)((yield getFile('resources/metadata/metadata.csv', true, googleRepo))
+                .content, Object.assign(Object.assign({}, parserOptions), { onRecord(record) {
                     if (record['Main Region'] !== '001') {
                         return record;
                     }
                 } }));
             core.info('metadata.csv loaded');
-            core.info(trr);
             for (let i = 0; i < metadata.length; i++) {
                 const callingCode = metadata[i]['Calling Code'];
                 const formatsCvs = yield getFile(`resources/metadata/${callingCode}/formats.csv`, false, googleRepo);
                 const formats = formatsCvs && (0, sync_1.parse)(formatsCvs.content, parserOptions);
-                (0, sync_1.parse)((yield getFile(`resources/metadata/${callingCode}/ranges.csv`, true, googleRepo)).content, Object.assign({ onRecord(record) {
+                const lll = (yield getFile(`resources/metadata/${callingCode}/ranges.csv`, true, googleRepo)).content;
+                if (!lll) {
+                    core.info(`${callingCode} is empty`);
+                }
+                (0, sync_1.parse)(lll, Object.assign({ onRecord(record) {
                         if (record.Type === 'MOBILE' ||
                             record.Type === 'FIXED_LINE_OR_MOBILE') {
                             const regions = record.Regions.split(',');
@@ -194,6 +197,9 @@ function run() {
                 const { mobile, _id, _countryCode, _leadingDigits, _mainCountryForCode } = data[i];
                 if (_id === '001' || !mobile) {
                     continue;
+                }
+                if (!formatObj[_id]) {
+                    core.info(`${_id} formats is absent`);
                 }
                 const country = {
                     iso2: _id,

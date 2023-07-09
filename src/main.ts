@@ -102,22 +102,20 @@ async function run(): Promise<void> {
 
     const googleRepo: Repo = { owner: 'google', repo: 'libphonenumber' };
 
-    const trr = (
-      await getFile('resources/metadata/metadata.csv', true, googleRepo)
-    ).content;
-
-    const metadata: Metadata[] = parse(trr, {
-      ...parserOptions,
-      onRecord(record: Metadata) {
-        if (record['Main Region'] !== '001') {
-          return record;
-        }
+    const metadata: Metadata[] = parse(
+      (await getFile('resources/metadata/metadata.csv', true, googleRepo))
+        .content,
+      {
+        ...parserOptions,
+        onRecord(record: Metadata) {
+          if (record['Main Region'] !== '001') {
+            return record;
+          }
+        },
       },
-    });
+    );
 
     core.info('metadata.csv loaded');
-
-    core.info(trr);
 
     for (let i = 0; i < metadata.length; i++) {
       type Ranges = Record<
@@ -143,58 +141,61 @@ async function run(): Promise<void> {
       const formats =
         formatsCvs && (parse(formatsCvs.content, parserOptions) as Format[]);
 
-      parse(
-        (
-          await getFile(
-            `resources/metadata/${callingCode}/ranges.csv`,
-            true,
-            googleRepo,
-          )
-        ).content,
-        {
-          onRecord(record: Ranges) {
-            if (
-              record.Type === 'MOBILE' ||
-              record.Type === 'FIXED_LINE_OR_MOBILE'
-            ) {
-              const regions = record.Regions.split(',');
+      const lll = (
+        await getFile(
+          `resources/metadata/${callingCode}/ranges.csv`,
+          true,
+          googleRepo,
+        )
+      ).content;
 
-              const format = record.Format;
+      if (!lll) {
+        core.info(`${callingCode} is empty`);
+      }
 
-              const arr = record.Length.split(/[-,]/);
+      parse(lll, {
+        onRecord(record: Ranges) {
+          if (
+            record.Type === 'MOBILE' ||
+            record.Type === 'FIXED_LINE_OR_MOBILE'
+          ) {
+            const regions = record.Regions.split(',');
 
-              const length = +arr[arr.length - 1];
+            const format = record.Format;
 
-              for (let i = regions.length; i--; ) {
-                const iso2 = regions[i];
+            const arr = record.Length.split(/[-,]/);
 
-                if (formats && format) {
-                  addToFormatObj(iso2, format, () => {
-                    const value = formats.find(
-                      item => item.Id === format,
-                    )!.International;
+            const length = +arr[arr.length - 1];
 
-                    if (value && value.indexOf('{X>}') == -1) {
-                      return {
-                        format: value.replace(/[*X]/g, MASK_SYMBOL),
-                        length,
-                        index: -1,
-                      };
-                    }
-                  });
-                } else {
-                  addToWithoutFormatObj(iso2, length, () => ({
-                    format: Array.from({ length }, () => MASK_SYMBOL).join(''),
-                    length,
-                    index: -1,
-                  }));
-                }
+            for (let i = regions.length; i--; ) {
+              const iso2 = regions[i];
+
+              if (formats && format) {
+                addToFormatObj(iso2, format, () => {
+                  const value = formats.find(
+                    item => item.Id === format,
+                  )!.International;
+
+                  if (value && value.indexOf('{X>}') == -1) {
+                    return {
+                      format: value.replace(/[*X]/g, MASK_SYMBOL),
+                      length,
+                      index: -1,
+                    };
+                  }
+                });
+              } else {
+                addToWithoutFormatObj(iso2, length, () => ({
+                  format: Array.from({ length }, () => MASK_SYMBOL).join(''),
+                  length,
+                  index: -1,
+                }));
               }
             }
-          },
-          ...parserOptions,
+          }
         },
-      );
+        ...parserOptions,
+      });
     }
 
     for (const key in withoutFormatObj) {
@@ -319,6 +320,10 @@ async function run(): Promise<void> {
 
       if (_id === '001' || !mobile) {
         continue;
+      }
+
+      if (!formatObj[_id]) {
+        core.info(`${_id} formats is absent`);
       }
 
       const country: CountryData = {
