@@ -292,8 +292,9 @@ function run() {
             yield addFile(`src/utils/${"constants" /* Names.CONSTANTS */}.ts`, `${INTERNAL}export const MAX_CALLING_CODE_LENGTH=${longestCallingCode};\n\n${INTERNAL}export const MAX_NUMBER_LENGTH=${longestNumber};\n\n${INTERNAL}export const MASK_SYMBOL='${MASK_SYMBOL}';\n\n${formatsFile}`);
             if (files.length) {
                 const newBranch = 'next';
-                const commitSHA = (yield octokit.git.createRef(Object.assign(Object.assign({}, myRepo), { ref: `refs/heads/${newBranch}`, sha: (yield octokit.repos.getBranch(Object.assign(Object.assign({}, myRepo), { branch: baseBranch }))).data.commit.sha }))).data.object.sha;
-                const newTreeSHA = (yield octokit.git.createTree(Object.assign(Object.assign({}, myRepo), { tree: files }))).data.sha;
+                const baseSHA = (yield octokit.repos.getBranch(Object.assign(Object.assign({}, myRepo), { branch: baseBranch }))).data.commit.sha;
+                const commitSHA = (yield octokit.git.createRef(Object.assign(Object.assign({}, myRepo), { ref: `refs/heads/${newBranch}`, sha: baseSHA }))).data.object.sha;
+                const newTreeSHA = (yield octokit.git.createTree(Object.assign(Object.assign({}, myRepo), { tree: files, base_tree: commitSHA }))).data.sha;
                 const commitMessage = 'Commit changes';
                 yield octokit.git.updateRef(Object.assign(Object.assign({}, myRepo), { ref: `refs/heads/${newBranch}`, sha: (yield octokit.git.createCommit(Object.assign(Object.assign({}, myRepo), { message: commitMessage, tree: newTreeSHA, parents: [commitSHA] }))).data.sha }));
                 const pullRequestTitle = 'New Pull Request';

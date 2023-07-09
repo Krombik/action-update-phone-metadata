@@ -496,13 +496,15 @@ async function run(): Promise<void> {
     if (files.length) {
       const newBranch = 'next';
 
+      const baseSHA = (
+        await octokit.repos.getBranch({ ...myRepo, branch: baseBranch })
+      ).data.commit.sha;
+
       const commitSHA = (
         await octokit.git.createRef({
           ...myRepo,
           ref: `refs/heads/${newBranch}`,
-          sha: (
-            await octokit.repos.getBranch({ ...myRepo, branch: baseBranch })
-          ).data.commit.sha,
+          sha: baseSHA,
         })
       ).data.object.sha;
 
@@ -510,6 +512,7 @@ async function run(): Promise<void> {
         await octokit.git.createTree({
           ...myRepo,
           tree: files,
+          base_tree: commitSHA,
         })
       ).data.sha;
 
