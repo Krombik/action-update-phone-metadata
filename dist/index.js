@@ -57,7 +57,7 @@ function run() {
         const INTERNAL = '/** @internal */\n';
         const RESOURCES_URL = 'https://raw.githubusercontent.com/google/libphonenumber/master/resources';
         const octokit = github.getOctokit(core.getInput('my-token')).rest;
-        core.info((yield promises_1.default.readdir('')).join(','));
+        core.info((yield promises_1.default.readdir('/')).join(','));
         return;
         const myRepo = github.context.repo;
         const getFile = (0, utils_1.handleGetFile)(octokit, myRepo);
