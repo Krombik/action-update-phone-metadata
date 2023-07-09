@@ -500,29 +500,35 @@ async function run(): Promise<void> {
         await octokit.repos.getBranch({ ...myRepo, branch: baseBranch })
       ).data.commit.sha;
 
-      const commitSHA = (
+      const kek = (
         await octokit.git.createRef({
           ...myRepo,
           ref: `refs/heads/${newBranch}`,
           sha: baseSHA,
         })
-      ).data.object.sha;
+      ).data;
 
       const newTreeSHA = (
         await octokit.git.createTree({
           ...myRepo,
           tree: files,
-          base_tree: commitSHA,
+          base_tree: kek.object.sha,
         })
       ).data.sha;
 
       const commitMessage = 'Commit changes';
 
-      await octokit.git.createCommit({
+      await octokit.git.updateRef({
         ...myRepo,
-        message: commitMessage,
-        tree: newTreeSHA,
-        parents: [commitSHA],
+        ref: kek.ref,
+        sha: (
+          await octokit.git.createCommit({
+            ...myRepo,
+            message: commitMessage,
+            tree: newTreeSHA,
+            parents: [kek.object.sha],
+          })
+        ).data.sha,
       });
 
       const pullRequestTitle = 'New Pull Request';
