@@ -515,11 +515,17 @@ async function run(): Promise<void> {
 
       const commitMessage = 'Commit changes';
 
-      await octokit.git.createCommit({
+      await octokit.git.updateRef({
         ...myRepo,
-        message: commitMessage,
-        tree: newTreeSHA,
-        parents: [commitSHA],
+        ref: `refs/heads/${newBranch}`,
+        sha: (
+          await octokit.git.createCommit({
+            ...myRepo,
+            message: commitMessage,
+            tree: newTreeSHA,
+            parents: [commitSHA],
+          })
+        ).data.sha,
       });
 
       const pullRequestTitle = 'New Pull Request';

@@ -102,6 +102,8 @@ export const getFile = async <T extends boolean>(
     const { status } = error.response;
 
     if (status === 503 && attempt) {
+      await new Promise(res => setTimeout(res, 300));
+
       return getFile(filePath, required, repo, brunch, attempt - 1);
     }
 

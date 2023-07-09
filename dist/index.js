@@ -295,7 +295,7 @@ function run() {
                 const commitSHA = (yield octokit.git.createRef(Object.assign(Object.assign({}, myRepo), { ref: `refs/heads/${newBranch}`, sha: (yield octokit.repos.getBranch(Object.assign(Object.assign({}, myRepo), { branch: baseBranch }))).data.commit.sha }))).data.object.sha;
                 const newTreeSHA = (yield octokit.git.createTree(Object.assign(Object.assign({}, myRepo), { tree: files }))).data.sha;
                 const commitMessage = 'Commit changes';
-                yield octokit.git.createCommit(Object.assign(Object.assign({}, myRepo), { message: commitMessage, tree: newTreeSHA, parents: [commitSHA] }));
+                yield octokit.git.updateRef(Object.assign(Object.assign({}, myRepo), { ref: `refs/heads/${newBranch}`, sha: (yield octokit.git.createCommit(Object.assign(Object.assign({}, myRepo), { message: commitMessage, tree: newTreeSHA, parents: [commitSHA] }))).data.sha }));
                 const pullRequestTitle = 'New Pull Request';
                 const pullRequestBody = 'This is a new pull request';
                 yield octokit.pulls.create(Object.assign(Object.assign({}, myRepo), { title: pullRequestTitle, body: pullRequestBody, head: newBranch, base: baseBranch }));
@@ -398,6 +398,7 @@ const getFile = (filePath, required, repo, brunch, attempt = 4) => __awaiter(voi
     catch (error) {
         const { status } = error.response;
         if (status === 503 && attempt) {
+            yield new Promise(res => setTimeout(res, 300));
             return (0, exports.getFile)(filePath, required, repo, brunch, attempt - 1);
         }
         if (!required && status === 404) {
