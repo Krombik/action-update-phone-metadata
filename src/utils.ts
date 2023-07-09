@@ -49,7 +49,32 @@ export const handleGenerate = (
 ) => {
   const COMMENT = `// GENERATED FILE - DO NOT EDIT\n\n// This file has been automatically generated. Any modifications made to this file will be overwritten the next time it is regenerated. Please refrain from editing this file directly.\n\n`;
 
-  type File = { path: string; content: string; sha?: string };
+  type File = {
+    /** @description The file referenced in the tree. */
+    path?: string;
+    /**
+     * @description The file mode; one of `100644` for file (blob), `100755` for executable (blob), `040000` for subdirectory (tree), `160000` for submodule (commit), or `120000` for a blob that specifies the path of a symlink.
+     * @enum {string}
+     */
+    mode?: '100644' | '100755' | '040000' | '160000' | '120000';
+    /**
+     * @description Either `blob`, `tree`, or `commit`.
+     * @enum {string}
+     */
+    type?: 'blob' | 'tree' | 'commit';
+    /**
+     * @description The SHA1 checksum ID of the object in the tree. Also called `tree.sha`. If the value is `null` then the file will be deleted.
+     *
+     * **Note:** Use either `tree.sha` or `content` to specify the contents of the entry. Using both `tree.sha` and `content` will return an error.
+     */
+    sha?: string | null;
+    /**
+     * @description The content you want this file to have. GitHub will write this blob out and use that SHA for this entry. Use either this, or `tree.sha`.
+     *
+     * **Note:** Use either `tree.sha` or `content` to specify the contents of the entry. Using both `tree.sha` and `content` will return an error.
+     */
+    content?: string;
+  };
 
   const files: File[] = [];
 
@@ -63,6 +88,8 @@ export const handleGenerate = (
         const file: File = {
           path,
           content: Buffer.from(newFileContent, 'utf8').toString('base64'),
+          mode: '100644',
+          type: 'blob',
         };
 
         if (prevFile) {

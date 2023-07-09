@@ -376,6 +376,8 @@ const handleGenerate = (prettierConfig, octokit, repo, brunch) => {
                     const file = {
                         path,
                         content: Buffer.from(newFileContent, 'utf8').toString('base64'),
+                        mode: '100644',
+                        type: 'blob',
                     };
                     if (prevFile) {
                         const { data } = yield octokit.repos.getContent(Object.assign(Object.assign({}, repo), { path }));
