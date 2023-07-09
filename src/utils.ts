@@ -66,7 +66,7 @@ export const handleGenerate = (
       if (!prevFile || prevFile !== newFileContent) {
         const file: File = {
           path,
-          content: Buffer.from(newFileContent, 'utf8').toString('base64'),
+          content: newFileContent,
           mode: '100644',
           type: 'blob',
         };
