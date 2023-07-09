@@ -3,6 +3,7 @@ import * as github from '@actions/github';
 import { XMLParser } from 'fast-xml-parser';
 import { parse, Options } from 'csv-parse/sync';
 import { Repo, handleGenerate, handleGetFile, handleUnique } from './utils';
+import axios from 'axios';
 
 type Metadata = Record<
   'Calling Code' | 'Extra Regions' | 'Main Region',
@@ -51,7 +52,8 @@ async function run(): Promise<void> {
 
   const INTERNAL = '/** @internal */\n';
 
-  // const branchName = core.getInput('branch-name');
+  const RESOURCES_URL =
+    'https://raw.githubusercontent.com/google/libphonenumber/master/resources';
 
   const octokit = github.getOctokit(core.getInput('my-token')).rest;
 
@@ -103,8 +105,7 @@ async function run(): Promise<void> {
     const googleRepo: Repo = { owner: 'google', repo: 'libphonenumber' };
 
     const metadata: Metadata[] = parse(
-      (await getFile('resources/metadata/metadata.csv', true, googleRepo))
-        .content,
+      (await axios.get(`${RESOURCES_URL}/metadata/metadata.csv`)).data,
       {
         ...parserOptions,
         onRecord(record: Metadata) {
@@ -132,22 +133,23 @@ async function run(): Promise<void> {
 
       const callingCode = metadata[i]['Calling Code'];
 
-      const formatsCvs = await getFile(
-        `resources/metadata/${callingCode}/formats.csv`,
-        false,
-        googleRepo,
-      );
+      let formatsCvs;
+      try {
+        formatsCvs = (
+          await axios.get(
+            `${RESOURCES_URL}/metadata/${callingCode}/formats.csv`,
+          )
+        ).data;
+      } catch (err) {
+        formatsCvs = '';
+      }
 
       const formats =
-        formatsCvs && (parse(formatsCvs.content, parserOptions) as Format[]);
+        formatsCvs && (parse(formatsCvs, parserOptions) as Format[]);
 
       const lll = (
-        await getFile(
-          `resources/metadata/${callingCode}/ranges.csv`,
-          true,
-          googleRepo,
-        )
-      ).content;
+        await axios.get(`${RESOURCES_URL}/metadata/${callingCode}/ranges.csv`)
+      ).data;
 
       if (!lll) {
         core.info(`${callingCode} is empty`);
@@ -173,7 +175,7 @@ async function run(): Promise<void> {
               if (formats && format) {
                 addToFormatObj(iso2, format, () => {
                   const value = formats.find(
-                    item => item.Id === format,
+                    (item: any) => item.Id === format,
                   )!.International;
 
                   if (value && value.indexOf('{X>}') == -1) {
