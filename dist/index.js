@@ -69,13 +69,14 @@ function run() {
                 skip_records_with_empty_values: true,
             };
             const googleRepo = { owner: 'google', repo: 'libphonenumber' };
-            const metadata = (0, sync_1.parse)((yield getFile('resources/metadata/metadata.csv', true, googleRepo))
-                .content, Object.assign(Object.assign({}, parserOptions), { onRecord(record) {
+            const trr = (yield getFile('resources/metadata/metadata.csv', true, googleRepo)).content;
+            const metadata = (0, sync_1.parse)(trr, Object.assign(Object.assign({}, parserOptions), { onRecord(record) {
                     if (record['Main Region'] !== '001') {
                         return record;
                     }
                 } }));
             core.info('metadata.csv loaded');
+            core.info(trr);
             for (let i = 0; i < metadata.length; i++) {
                 const callingCode = metadata[i]['Calling Code'];
                 const formatsCvs = yield getFile(`resources/metadata/${callingCode}/formats.csv`, false, googleRepo);

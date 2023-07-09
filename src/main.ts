@@ -102,20 +102,22 @@ async function run(): Promise<void> {
 
     const googleRepo: Repo = { owner: 'google', repo: 'libphonenumber' };
 
-    const metadata: Metadata[] = parse(
-      (await getFile('resources/metadata/metadata.csv', true, googleRepo))
-        .content,
-      {
-        ...parserOptions,
-        onRecord(record: Metadata) {
-          if (record['Main Region'] !== '001') {
-            return record;
-          }
-        },
+    const trr = (
+      await getFile('resources/metadata/metadata.csv', true, googleRepo)
+    ).content;
+
+    const metadata: Metadata[] = parse(trr, {
+      ...parserOptions,
+      onRecord(record: Metadata) {
+        if (record['Main Region'] !== '001') {
+          return record;
+        }
       },
-    );
+    });
 
     core.info('metadata.csv loaded');
+
+    core.info(trr);
 
     for (let i = 0; i < metadata.length; i++) {
       type Ranges = Record<
