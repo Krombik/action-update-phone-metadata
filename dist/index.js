@@ -178,6 +178,7 @@ function run() {
                     }
                 }
             }
+            core.info('formats handled');
             const { territories } = new fast_xml_parser_1.XMLParser({
                 ignoreAttributes: false,
                 parseTagValue: false,

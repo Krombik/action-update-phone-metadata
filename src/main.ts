@@ -276,6 +276,8 @@ async function run(): Promise<void> {
       }
     }
 
+    core.info('formats handled');
+
     const { territories } = (
       new XMLParser({
         ignoreAttributes: false,
