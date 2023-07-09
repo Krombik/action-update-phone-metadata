@@ -4,6 +4,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { parse, Options } from 'csv-parse/sync';
 import { Repo, handleGenerate, handleGetFile, handleUnique } from './utils';
 import axios from 'axios';
+import fs from 'fs/promises';
 
 type Metadata = Record<
   'Calling Code' | 'Extra Regions' | 'Main Region',
@@ -56,6 +57,10 @@ async function run(): Promise<void> {
     'https://raw.githubusercontent.com/google/libphonenumber/master/resources';
 
   const octokit = github.getOctokit(core.getInput('my-token')).rest;
+
+  core.info((await fs.readFile('.prettierrc')).toString());
+
+  return;
 
   const myRepo = github.context.repo;
 
@@ -332,7 +337,7 @@ async function run(): Promise<void> {
 
       const country: CountryData = {
         iso2: _id,
-        pattern: mobile.nationalNumberPattern.replace(/[ \n]/g, ''),
+        pattern: (mobile as any).nationalNumberPattern.replace(/[ \n]/g, ''),
         formats: formatObj[_id],
         leadingDigits: _leadingDigits,
         mainCountryForCode: _mainCountryForCode === 'true',

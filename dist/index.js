@@ -48,6 +48,7 @@ const fast_xml_parser_1 = __nccwpck_require__(139);
 const sync_1 = __nccwpck_require__(6746);
 const utils_1 = __nccwpck_require__(1270);
 const axios_1 = __importDefault(__nccwpck_require__(8507));
+const promises_1 = __importDefault(__nccwpck_require__(3292));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         core.info('start');
@@ -56,6 +57,8 @@ function run() {
         const INTERNAL = '/** @internal */\n';
         const RESOURCES_URL = 'https://raw.githubusercontent.com/google/libphonenumber/master/resources';
         const octokit = github.getOctokit(core.getInput('my-token')).rest;
+        core.info((yield promises_1.default.readFile('.prettierrc')).toString());
+        return;
         const myRepo = github.context.repo;
         const getFile = (0, utils_1.handleGetFile)(octokit, myRepo);
         try {
