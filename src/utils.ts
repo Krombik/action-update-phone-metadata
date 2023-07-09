@@ -1,5 +1,6 @@
 import { format } from 'prettier';
 import { type getOctokit } from '@actions/github';
+import axios from 'axios';
 
 export const handleUnique = <K, T>() => {
   const map = new Map<string, Set<K>>();
@@ -42,7 +43,9 @@ export const handleUnique = <K, T>() => {
 
 export const handleGenerate = (
   prettierConfig: any,
-  getFile: ReturnType<typeof handleGetFile>,
+  octokit: ReturnType<typeof getOctokit>['rest'],
+  repo: Repo,
+  brunch: string,
 ) => {
   const COMMENT = `// GENERATED FILE - DO NOT EDIT\n\n// This file has been automatically generated. Any modifications made to this file will be overwritten the next time it is regenerated. Please refrain from editing this file directly.\n\n`;
 
@@ -54,16 +57,25 @@ export const handleGenerate = (
     async addFile(path: string, file: string) {
       const newFileContent = await format(COMMENT + file, prettierConfig);
 
-      const prevFile = await getFile(path, false);
+      const prevFile = await getFile(path, false, repo, brunch);
 
-      if (!prevFile || prevFile.content !== newFileContent) {
+      if (!prevFile || prevFile !== newFileContent) {
         const file: File = {
           path,
           content: Buffer.from(newFileContent, 'utf8').toString('base64'),
         };
 
         if (prevFile) {
-          file.sha = prevFile.sha;
+          const { data } = await octokit.repos.getContent({
+            ...repo,
+            path,
+          });
+
+          if (!('sha' in data)) {
+            throw new Error(`no sha in ${path}`);
+          }
+
+          file.sha = data.sha;
         }
 
         files.push(file);
@@ -75,34 +87,27 @@ export const handleGenerate = (
 
 export type Repo = { owner: string; repo: string };
 
-type Data = { content: string; sha: string };
+export const getFile = async <T extends boolean>(
+  filePath: string,
+  required: T,
+  repo: Repo,
+  brunch: string,
+): Promise<T extends false ? string | undefined : string> => {
+  try {
+    const { data } = await axios.get(
+      `https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${brunch}/${filePath}`,
+    );
 
-export const handleGetFile =
-  (octokit: ReturnType<typeof getOctokit>['rest'], defaultRepo: Repo) =>
-  async <T extends boolean>(
-    filePath: string,
-    required: T,
-    repo?: Repo,
-  ): Promise<T extends false ? Data | undefined : Data> => {
-    try {
-      const { data } = await octokit.repos.getContent({
-        ...(repo || defaultRepo),
-        path: filePath,
-      });
-
-      if (!('content' in data)) {
-        throw new Error(`no content`);
-      }
-
-      return {
-        content: Buffer.from(data.content, 'base64').toString('utf8'),
-        sha: data.sha,
-      };
-    } catch (error: any) {
-      if (!required && error.status === 404) {
-        return undefined!;
-      }
-
-      throw new Error(`${filePath} failed, ${error.message}`);
+    if (!data) {
+      throw new Error(`no content`);
     }
-  };
+
+    return data;
+  } catch (error: any) {
+    if (!required && error.status === 404) {
+      return undefined!;
+    }
+
+    throw new Error(`${filePath} failed, ${error.message}`);
+  }
+};

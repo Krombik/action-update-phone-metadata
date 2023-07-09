@@ -2,9 +2,7 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { XMLParser } from 'fast-xml-parser';
 import { parse, Options } from 'csv-parse/sync';
-import { Repo, handleGenerate, handleGetFile, handleUnique } from './utils';
-import axios from 'axios';
-import fs from 'fs/promises';
+import { Repo, handleGenerate, getFile, handleUnique } from './utils';
 
 type Metadata = Record<
   'Calling Code' | 'Extra Regions' | 'Main Region',
@@ -53,23 +51,18 @@ async function run(): Promise<void> {
 
   const INTERNAL = '/** @internal */\n';
 
-  const RESOURCES_URL =
-    'https://raw.githubusercontent.com/google/libphonenumber/master/resources';
+  const googleBaseBranch = 'master';
 
   const octokit = github.getOctokit(core.getInput('my-token')).rest;
 
-  core.info((await fs.readdir('/')).join(','));
-
-  return;
-
   const myRepo = github.context.repo;
-
-  const getFile = handleGetFile(octokit, myRepo);
 
   try {
     const { files, addFile } = handleGenerate(
-      JSON.parse((await getFile('.prettierrc', true)).content),
-      getFile,
+      JSON.parse(await getFile('.prettierrc', true, myRepo, baseBranch)),
+      octokit,
+      myRepo,
+      baseBranch,
     );
 
     core.info('prettier config loaded');
@@ -110,7 +103,12 @@ async function run(): Promise<void> {
     const googleRepo: Repo = { owner: 'google', repo: 'libphonenumber' };
 
     const metadata: Metadata[] = parse(
-      (await axios.get(`${RESOURCES_URL}/metadata/metadata.csv`)).data,
+      await getFile(
+        'resources/metadata/metadata.csv',
+        true,
+        googleRepo,
+        googleBaseBranch,
+      ),
       {
         ...parserOptions,
         onRecord(record: Metadata) {
@@ -138,23 +136,22 @@ async function run(): Promise<void> {
 
       const callingCode = metadata[i]['Calling Code'];
 
-      let formatsCvs;
-      try {
-        formatsCvs = (
-          await axios.get(
-            `${RESOURCES_URL}/metadata/${callingCode}/formats.csv`,
-          )
-        ).data;
-      } catch (err) {
-        formatsCvs = '';
-      }
+      const formatsCvs = await getFile(
+        `resources/metadata/${callingCode}/formats.csv`,
+        false,
+        googleRepo,
+        googleBaseBranch,
+      );
 
       const formats =
         formatsCvs && (parse(formatsCvs, parserOptions) as Format[]);
 
-      const lll = (
-        await axios.get(`${RESOURCES_URL}/metadata/${callingCode}/ranges.csv`)
-      ).data;
+      const lll = await getFile(
+        `resources/metadata/${callingCode}/ranges.csv`,
+        true,
+        googleRepo,
+        googleBaseBranch,
+      );
 
       if (!lll) {
         core.info(`${callingCode} is empty`);
@@ -292,8 +289,12 @@ async function run(): Promise<void> {
         attributeNamePrefix: '_',
         commentPropName: '__comment',
       }).parse(
-        (await getFile('resources/PhoneNumberMetadata.xml', true, googleRepo))
-          .content,
+        await getFile(
+          'resources/PhoneNumberMetadata.xml',
+          true,
+          googleRepo,
+          googleBaseBranch,
+        ),
       ) as Welcome2
     ).phoneNumberMetadata;
 
@@ -337,7 +338,7 @@ async function run(): Promise<void> {
 
       const country: CountryData = {
         iso2: _id,
-        pattern: (mobile as any).nationalNumberPattern.replace(/[ \n]/g, ''),
+        pattern: mobile.nationalNumberPattern.replace(/[ \n]/g, ''),
         formats: formatObj[_id],
         leadingDigits: _leadingDigits,
         mainCountryForCode: _mainCountryForCode === 'true',

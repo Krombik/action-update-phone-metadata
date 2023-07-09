@@ -38,31 +38,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7954));
 const github = __importStar(__nccwpck_require__(9939));
 const fast_xml_parser_1 = __nccwpck_require__(139);
 const sync_1 = __nccwpck_require__(6746);
 const utils_1 = __nccwpck_require__(1270);
-const axios_1 = __importDefault(__nccwpck_require__(8507));
-const promises_1 = __importDefault(__nccwpck_require__(3292));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         core.info('start');
         const baseBranch = 'main';
         const MASK_SYMBOL = '0';
         const INTERNAL = '/** @internal */\n';
-        const RESOURCES_URL = 'https://raw.githubusercontent.com/google/libphonenumber/master/resources';
+        const googleBaseBranch = 'master';
         const octokit = github.getOctokit(core.getInput('my-token')).rest;
-        core.info((yield promises_1.default.readdir('/')).join(','));
-        return;
         const myRepo = github.context.repo;
-        const getFile = (0, utils_1.handleGetFile)(octokit, myRepo);
         try {
-            const { files, addFile } = (0, utils_1.handleGenerate)(JSON.parse((yield getFile('.prettierrc', true)).content), getFile);
+            const { files, addFile } = (0, utils_1.handleGenerate)(JSON.parse(yield (0, utils_1.getFile)('.prettierrc', true, myRepo, baseBranch)), octokit, myRepo, baseBranch);
             core.info('prettier config loaded');
             const [withoutFormatObj, addToWithoutFormatObj] = (0, utils_1.handleUnique)();
             const [formatObj, addToFormatObj] = (0, utils_1.handleUnique)();
@@ -76,7 +68,7 @@ function run() {
                 skip_records_with_empty_values: true,
             };
             const googleRepo = { owner: 'google', repo: 'libphonenumber' };
-            const metadata = (0, sync_1.parse)((yield axios_1.default.get(`${RESOURCES_URL}/metadata/metadata.csv`)).data, Object.assign(Object.assign({}, parserOptions), { onRecord(record) {
+            const metadata = (0, sync_1.parse)(yield (0, utils_1.getFile)('resources/metadata/metadata.csv', true, googleRepo, googleBaseBranch), Object.assign(Object.assign({}, parserOptions), { onRecord(record) {
                     if (record['Main Region'] !== '001') {
                         return record;
                     }
@@ -84,15 +76,9 @@ function run() {
             core.info('metadata.csv loaded');
             for (let i = 0; i < metadata.length; i++) {
                 const callingCode = metadata[i]['Calling Code'];
-                let formatsCvs;
-                try {
-                    formatsCvs = (yield axios_1.default.get(`${RESOURCES_URL}/metadata/${callingCode}/formats.csv`)).data;
-                }
-                catch (err) {
-                    formatsCvs = '';
-                }
+                const formatsCvs = yield (0, utils_1.getFile)(`resources/metadata/${callingCode}/formats.csv`, false, googleRepo, googleBaseBranch);
                 const formats = formatsCvs && (0, sync_1.parse)(formatsCvs, parserOptions);
-                const lll = (yield axios_1.default.get(`${RESOURCES_URL}/metadata/${callingCode}/ranges.csv`)).data;
+                const lll = yield (0, utils_1.getFile)(`resources/metadata/${callingCode}/ranges.csv`, true, googleRepo, googleBaseBranch);
                 if (!lll) {
                     core.info(`${callingCode} is empty`);
                 }
@@ -189,8 +175,7 @@ function run() {
                 parseAttributeValue: false,
                 attributeNamePrefix: '_',
                 commentPropName: '__comment',
-            }).parse((yield getFile('resources/PhoneNumberMetadata.xml', true, googleRepo))
-                .content).phoneNumberMetadata;
+            }).parse(yield (0, utils_1.getFile)('resources/PhoneNumberMetadata.xml', true, googleRepo, googleBaseBranch)).phoneNumberMetadata;
             core.info('PhoneNumberMetadata.xml loaded');
             const nameDictionary = {};
             const iso2Dictionary = {};
@@ -341,9 +326,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.handleGetFile = exports.handleGenerate = exports.handleUnique = void 0;
+exports.getFile = exports.handleGenerate = exports.handleUnique = void 0;
 const prettier_1 = __nccwpck_require__(5293);
+const axios_1 = __importDefault(__nccwpck_require__(8507));
 const handleUnique = () => {
     const map = new Map();
     const obj = {};
@@ -375,21 +364,25 @@ const handleUnique = () => {
     ];
 };
 exports.handleUnique = handleUnique;
-const handleGenerate = (prettierConfig, getFile) => {
+const handleGenerate = (prettierConfig, octokit, repo, brunch) => {
     const COMMENT = `// GENERATED FILE - DO NOT EDIT\n\n// This file has been automatically generated. Any modifications made to this file will be overwritten the next time it is regenerated. Please refrain from editing this file directly.\n\n`;
     const files = [];
     return {
         addFile(path, file) {
             return __awaiter(this, void 0, void 0, function* () {
                 const newFileContent = yield (0, prettier_1.format)(COMMENT + file, prettierConfig);
-                const prevFile = yield getFile(path, false);
-                if (!prevFile || prevFile.content !== newFileContent) {
+                const prevFile = yield (0, exports.getFile)(path, false, repo, brunch);
+                if (!prevFile || prevFile !== newFileContent) {
                     const file = {
                         path,
                         content: Buffer.from(newFileContent, 'utf8').toString('base64'),
                     };
                     if (prevFile) {
-                        file.sha = prevFile.sha;
+                        const { data } = yield octokit.repos.getContent(Object.assign(Object.assign({}, repo), { path }));
+                        if (!('sha' in data)) {
+                            throw new Error(`no sha in ${path}`);
+                        }
+                        file.sha = data.sha;
                     }
                     files.push(file);
                 }
@@ -399,16 +392,13 @@ const handleGenerate = (prettierConfig, getFile) => {
     };
 };
 exports.handleGenerate = handleGenerate;
-const handleGetFile = (octokit, defaultRepo) => (filePath, required, repo) => __awaiter(void 0, void 0, void 0, function* () {
+const getFile = (filePath, required, repo, brunch) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { data } = yield octokit.repos.getContent(Object.assign(Object.assign({}, (repo || defaultRepo)), { path: filePath }));
-        if (!('content' in data)) {
+        const { data } = yield axios_1.default.get(`https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${brunch}/${filePath}`);
+        if (!data) {
             throw new Error(`no content`);
         }
-        return {
-            content: Buffer.from(data.content, 'base64').toString('utf8'),
-            sha: data.sha,
-        };
+        return data;
     }
     catch (error) {
         if (!required && error.status === 404) {
@@ -417,7 +407,7 @@ const handleGetFile = (octokit, defaultRepo) => (filePath, required, repo) => __
         throw new Error(`${filePath} failed, ${error.message}`);
     }
 });
-exports.handleGetFile = handleGetFile;
+exports.getFile = getFile;
 //# sourceMappingURL=utils.js.map
 
 /***/ }),
