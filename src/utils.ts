@@ -96,6 +96,7 @@ export const getFile = async <T extends boolean>(
   try {
     const { data } = await axios.get(
       `https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${brunch}/${filePath}`,
+      { transformResponse: a => a },
     );
 
     if (!data) {

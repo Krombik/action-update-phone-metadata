@@ -394,7 +394,7 @@ const handleGenerate = (prettierConfig, octokit, repo, brunch) => {
 exports.handleGenerate = handleGenerate;
 const getFile = (filePath, required, repo, brunch) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { data } = yield axios_1.default.get(`https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${brunch}/${filePath}`);
+        const { data } = yield axios_1.default.get(`https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${brunch}/${filePath}`, { transformResponse: a => a });
         if (!data) {
             throw new Error(`no content`);
         }
