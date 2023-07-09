@@ -105,6 +105,9 @@ export const getFile = async <T extends boolean>(
 
     return data;
   } catch (error: any) {
+    if (!required) {
+      throw new Error(`${Object.keys(error).join(',')}`);
+    }
     if (!required && error.status === 404) {
       return undefined!;
     }

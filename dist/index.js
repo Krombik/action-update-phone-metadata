@@ -401,6 +401,9 @@ const getFile = (filePath, required, repo, brunch) => __awaiter(void 0, void 0, 
         return data;
     }
     catch (error) {
+        if (!required) {
+            throw new Error(`${Object.keys(error).join(',')}`);
+        }
         if (!required && error.status === 404) {
             return undefined;
         }
