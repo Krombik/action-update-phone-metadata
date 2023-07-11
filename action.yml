@@ -2,9 +2,23 @@ name: 'Your name here'
 description: 'Provide a description here'
 author: 'Your name or organization here'
 inputs:
-  my-token:
+  gh-token:
     required: true
     description: 'token'
+  constants-file-path:
+    required: true
+  phone-number-format-type-file-path:
+    required: true
+  iso2-type-file-path:
+    required: true
+  phone-number-utils-folder-path:
+    required: true
+  create-phone-number-utils-folder-path:
+    required: true
+  phone-number-formats-folder-path:
+    required: true
+  phone-number-validation-patterns-folder-path:
+    required: true
 runs:
   using: 'node16'
   main: 'dist/index.js'

@@ -44,6 +44,7 @@ const github = __importStar(__nccwpck_require__(9939));
 const fast_xml_parser_1 = __nccwpck_require__(139);
 const sync_1 = __nccwpck_require__(6746);
 const utils_1 = __nccwpck_require__(1270);
+const path_1 = __nccwpck_require__(1017);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         core.info('start');
@@ -51,11 +52,28 @@ function run() {
         const MASK_SYMBOL = '0';
         const INTERNAL = '/** @internal */\n';
         const googleBaseBranch = 'master';
-        const octokit = github.getOctokit(core.getInput('my-token')).rest;
+        const octokit = github.getOctokit(core.getInput('gh-token')).rest;
+        const SRC = 'src/';
+        const CONSTANTS_FILE_PATH = SRC + core.getInput('constants-file-path');
+        const PHONE_NUMBER_FORMAT_TYPE_FILE_PATH = SRC + core.getInput('phone-number-format-type-file-path');
+        const ISO2_TYPE_FILE_PATH = SRC + core.getInput('iso2-type-file-path');
+        const PHONE_NUMBER_UTILS_FOLDER_PATH = SRC + core.getInput('phone-number-utils-folder-path');
+        const CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH = SRC + core.getInput('create-phone-number-utils-folder-path');
+        const PHONE_NUMBER_FORMATS_FOLDER_PATH = SRC + core.getInput('phone-number-formats-folder-path');
+        const PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH = SRC + core.getInput('phone-number-validation-patterns-folder-path');
         const myRepo = github.context.repo;
         try {
             const { files, addFile } = (0, utils_1.handleGenerate)(JSON.parse(yield (0, utils_1.getFile)('.prettierrc', true, myRepo, baseBranch)), myRepo, baseBranch);
             core.info('prettier config loaded');
+            // const enum Names {
+            //   CONSTANTS = 'constants',
+            //   PHONE_NUMBER_UTILS = 'phoneNumberUtils',
+            //   CREATE_PHONE_NUMBER_UTILS = 'createPhoneNumberUtils',
+            //   PHONE_NUMBER_FORMATS = 'phoneNumberFormats',
+            //   PHONE_NUMBER_FORMAT = 'PhoneNumberFormat',
+            //   PHONE_VALIDATION_PATTERNS = 'phoneValidationPatterns',
+            //   ISO2 = 'iso2',
+            // }
             const [withoutFormatObj, addToWithoutFormatObj] = (0, utils_1.handleUnique)();
             const [formatObj, addToFormatObj] = (0, utils_1.handleUnique)();
             const parserOptions = {
@@ -197,7 +215,7 @@ function run() {
                     continue;
                 }
                 if (!formatObj[_id]) {
-                    core.info(`${_id} formats is absent`);
+                    core.debug(`${_id} formats is absent`);
                 }
                 const country = {
                     iso2: _id,
@@ -234,10 +252,10 @@ function run() {
                 }
                 for (let i = 0; i < item.length; i++) {
                     const country = item[i];
-                    let _import = `import {${"PhoneNumberFormat" /* Names.PHONE_NUMBER_FORMAT */}} from '../../types';\n\n`;
+                    let _import = `import ${(0, path_1.basename)(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH, (0, path_1.extname)(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH))} from '${(0, path_1.relative)(PHONE_NUMBER_FORMATS_FOLDER_PATH, PHONE_NUMBER_FORMAT_TYPE_FILE_PATH)}';\n\n`;
                     const iso2 = country.iso2.toUpperCase();
                     const countryNameComment = `/** ${iso2Dictionary[iso2]} */\n`;
-                    let str = `${countryNameComment}const ${iso2}: ${"PhoneNumberFormat" /* Names.PHONE_NUMBER_FORMAT */}=[${key},'${country.iso2}',${country.formats
+                    let str = `${countryNameComment}const ${iso2}:${(0, path_1.basename)(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH, (0, path_1.extname)(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH))}=[${key},'${country.iso2}',${country.formats
                         .reduce((acc, item) => {
                         if (item.length > longestNumber) {
                             longestNumber = item.length;
@@ -250,7 +268,7 @@ function run() {
                                 formatsVariableSet.add(variableName);
                                 formatsFile += `${INTERNAL}export const ${variableName}='${variable.format}';\n\n`;
                             }
-                            _import += `import {${variableName}} from '../../utils/${"constants" /* Names.CONSTANTS */}';\n\n`;
+                            _import += `import {${variableName}} from '${(0, path_1.relative)(PHONE_NUMBER_FORMATS_FOLDER_PATH, CONSTANTS_FILE_PATH)}';\n\n`;
                             acc.push(variableName);
                         }
                         else {
@@ -264,18 +282,20 @@ function run() {
                             country.pattern.replace(/\\d(?:\{\d+\})?/g, '')})/`;
                     }
                     countries.add(iso2);
-                    yield addFile(`src/${"phoneNumberFormats" /* Names.PHONE_NUMBER_FORMATS */}/${iso2}/index.ts`, `${_import}${str}];\n\nexport default ${iso2};`);
-                    yield addFile(`src/${"phoneValidationPatterns" /* Names.PHONE_VALIDATION_PATTERNS */}/${iso2}/index.ts`, `${countryNameComment}const ${iso2}=/^(?:${country.pattern})$/;\n\nexport default ${iso2};`);
+                    yield addFile(`${PHONE_NUMBER_FORMATS_FOLDER_PATH}/${iso2}/index.ts`, `${_import}${str}];\n\nexport default ${iso2};`);
+                    yield addFile(`${PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH}/${iso2}/index.ts`, `${countryNameComment}const ${iso2}=/^(?:${country.pattern})$/;\n\nexport default ${iso2};`);
                 }
             }
             if (countries.size) {
                 const arr1 = Array.from(countries).sort();
-                yield addFile(`src/${"phoneValidationPatterns" /* Names.PHONE_VALIDATION_PATTERNS */}/index.ts`, `${arr1
+                const phoneNumberValidationPatternsVariableName = (0, path_1.basename)(PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH);
+                yield addFile(`${PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH}/index.ts`, `${arr1
                     .map(iso2 => `import ${iso2} from './${iso2}';`)
-                    .join('\n')}\n\nconst ${"phoneValidationPatterns" /* Names.PHONE_VALIDATION_PATTERNS */}={${arr1.join(',')}};\n\nexport default ${"phoneValidationPatterns" /* Names.PHONE_VALIDATION_PATTERNS */};`);
-                yield addFile(`src/types/${"iso2" /* Names.ISO2 */}.ts`, `type ISO2=${arr1
+                    .join('\n')}\n\nconst ${phoneNumberValidationPatternsVariableName}={${arr1.join(',')}};\n\nexport default ${phoneNumberValidationPatternsVariableName};`);
+                const iso2TypeName = (0, path_1.basename)(ISO2_TYPE_FILE_PATH, (0, path_1.extname)(ISO2_TYPE_FILE_PATH));
+                yield addFile(ISO2_TYPE_FILE_PATH, `type ${iso2TypeName}=${arr1
                     .map(item => `'${item}'`)
-                    .join('|')};\n\nexport default ISO2;`);
+                    .join('|')};\n\nexport default ${iso2TypeName};`);
                 const arr2 = Object.keys(nameDictionary)
                     .sort()
                     .reduce((acc, name) => {
@@ -285,18 +305,18 @@ function run() {
                     }
                     return acc;
                 }, []);
-                yield addFile(`src/${"phoneNumberUtils" /* Names.PHONE_NUMBER_UTILS */}/index.ts`, `${arr2
-                    .map(iso2 => `import ${iso2} from '../${"phoneNumberFormats" /* Names.PHONE_NUMBER_FORMATS */}/${iso2}';`)
-                    .join('\n')}\n\nimport ${"createPhoneNumberUtils" /* Names.CREATE_PHONE_NUMBER_UTILS */} from '../${"createPhoneNumberUtils" /* Names.CREATE_PHONE_NUMBER_UTILS */}';\n\nconst ${"phoneNumberUtils" /* Names.PHONE_NUMBER_UTILS */} = ${"createPhoneNumberUtils" /* Names.CREATE_PHONE_NUMBER_UTILS */}([${arr2.join(',')}]);\n\nexport default ${"phoneNumberUtils" /* Names.PHONE_NUMBER_UTILS */};`);
+                const phoneNumberUtilsVariableName = (0, path_1.basename)(PHONE_NUMBER_UTILS_FOLDER_PATH);
+                yield addFile(`${PHONE_NUMBER_UTILS_FOLDER_PATH}/index.ts`, `${arr2
+                    .map(iso2 => `import ${iso2} from '${(0, path_1.relative)(PHONE_NUMBER_UTILS_FOLDER_PATH, PHONE_NUMBER_FORMATS_FOLDER_PATH)}/${iso2}';`)
+                    .join('\n')}\n\nimport ${(0, path_1.basename)(CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH)} from '${(0, path_1.relative)(PHONE_NUMBER_UTILS_FOLDER_PATH, CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH)}';\n\nconst ${phoneNumberUtilsVariableName}=${(0, path_1.basename)(CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH)}([${arr2.join(',')}]);\n\nexport default ${phoneNumberUtilsVariableName};`);
             }
-            yield addFile(`src/utils/${"constants" /* Names.CONSTANTS */}.ts`, `${INTERNAL}export const MAX_CALLING_CODE_LENGTH=${longestCallingCode};\n\n${INTERNAL}export const MAX_NUMBER_LENGTH=${longestNumber};\n\n${INTERNAL}export const MASK_SYMBOL='${MASK_SYMBOL}';\n\n${formatsFile}`);
+            yield addFile(CONSTANTS_FILE_PATH, `${INTERNAL}export const MAX_CALLING_CODE_LENGTH=${longestCallingCode};\n\n${INTERNAL}export const MAX_NUMBER_LENGTH=${longestNumber};\n\n${INTERNAL}export const MASK_SYMBOL='${MASK_SYMBOL}';\n\n${formatsFile}`);
             if (files.length) {
                 const newBranch = 'next';
                 const baseSHA = (yield octokit.repos.getBranch(Object.assign(Object.assign({}, myRepo), { branch: baseBranch }))).data.commit.sha;
                 yield octokit.git.createRef(Object.assign(Object.assign({}, myRepo), { ref: `refs/heads/${newBranch}`, sha: baseSHA }));
-                const newTreeSHA = (yield octokit.git.createTree(Object.assign(Object.assign({}, myRepo), { tree: files, base_tree: baseSHA }))).data.sha;
                 const commitMessage = 'Commit changes';
-                yield octokit.git.updateRef(Object.assign(Object.assign({}, myRepo), { ref: `heads/${newBranch}`, sha: (yield octokit.git.createCommit(Object.assign(Object.assign({}, myRepo), { message: commitMessage, tree: newTreeSHA, parents: [baseSHA] }))).data.sha }));
+                yield octokit.git.updateRef(Object.assign(Object.assign({}, myRepo), { ref: `heads/${newBranch}`, sha: (yield octokit.git.createCommit(Object.assign(Object.assign({}, myRepo), { message: commitMessage, tree: (yield octokit.git.createTree(Object.assign(Object.assign({}, myRepo), { tree: files, base_tree: baseSHA }))).data.sha, parents: [baseSHA] }))).data.sha }));
                 const pullRequestTitle = 'New Pull Request';
                 const pullRequestBody = 'This is a new pull request';
                 yield octokit.pulls.create(Object.assign(Object.assign({}, myRepo), { title: pullRequestTitle, body: pullRequestBody, head: newBranch, base: baseBranch }));

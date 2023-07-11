@@ -3,6 +3,7 @@ import * as github from '@actions/github';
 import { XMLParser } from 'fast-xml-parser';
 import { parse, Options } from 'csv-parse/sync';
 import { Repo, handleGenerate, getFile, handleUnique } from './utils';
+import { basename, extname, relative } from 'path';
 
 type Metadata = Record<
   'Calling Code' | 'Extra Regions' | 'Main Region',
@@ -53,7 +54,28 @@ async function run(): Promise<void> {
 
   const googleBaseBranch = 'master';
 
-  const octokit = github.getOctokit(core.getInput('my-token')).rest;
+  const octokit = github.getOctokit(core.getInput('gh-token')).rest;
+
+  const SRC = 'src/';
+
+  const CONSTANTS_FILE_PATH = SRC + core.getInput('constants-file-path');
+
+  const PHONE_NUMBER_FORMAT_TYPE_FILE_PATH =
+    SRC + core.getInput('phone-number-format-type-file-path');
+
+  const ISO2_TYPE_FILE_PATH = SRC + core.getInput('iso2-type-file-path');
+
+  const PHONE_NUMBER_UTILS_FOLDER_PATH =
+    SRC + core.getInput('phone-number-utils-folder-path');
+
+  const CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH =
+    SRC + core.getInput('create-phone-number-utils-folder-path');
+
+  const PHONE_NUMBER_FORMATS_FOLDER_PATH =
+    SRC + core.getInput('phone-number-formats-folder-path');
+
+  const PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH =
+    SRC + core.getInput('phone-number-validation-patterns-folder-path');
 
   const myRepo = github.context.repo;
 
@@ -66,21 +88,21 @@ async function run(): Promise<void> {
 
     core.info('prettier config loaded');
 
-    const enum Names {
-      CONSTANTS = 'constants',
+    // const enum Names {
+    //   CONSTANTS = 'constants',
 
-      PHONE_NUMBER_UTILS = 'phoneNumberUtils',
+    //   PHONE_NUMBER_UTILS = 'phoneNumberUtils',
 
-      CREATE_PHONE_NUMBER_UTILS = 'createPhoneNumberUtils',
+    //   CREATE_PHONE_NUMBER_UTILS = 'createPhoneNumberUtils',
 
-      PHONE_NUMBER_FORMATS = 'phoneNumberFormats',
+    //   PHONE_NUMBER_FORMATS = 'phoneNumberFormats',
 
-      PHONE_NUMBER_FORMAT = 'PhoneNumberFormat',
+    //   PHONE_NUMBER_FORMAT = 'PhoneNumberFormat',
 
-      PHONE_VALIDATION_PATTERNS = 'phoneValidationPatterns',
+    //   PHONE_VALIDATION_PATTERNS = 'phoneValidationPatterns',
 
-      ISO2 = 'iso2',
-    }
+    //   ISO2 = 'iso2',
+    // }
 
     const [withoutFormatObj, addToWithoutFormatObj] = handleUnique<
       number,
@@ -332,7 +354,7 @@ async function run(): Promise<void> {
       }
 
       if (!formatObj[_id]) {
-        core.info(`${_id} formats is absent`);
+        core.debug(`${_id} formats is absent`);
       }
 
       const country: CountryData = {
@@ -382,15 +404,22 @@ async function run(): Promise<void> {
       for (let i = 0; i < item.length; i++) {
         const country = item[i];
 
-        let _import = `import {${Names.PHONE_NUMBER_FORMAT}} from '../../types';\n\n`;
+        let _import = `import ${basename(
+          PHONE_NUMBER_FORMAT_TYPE_FILE_PATH,
+          extname(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH),
+        )} from '${relative(
+          PHONE_NUMBER_FORMATS_FOLDER_PATH,
+          PHONE_NUMBER_FORMAT_TYPE_FILE_PATH,
+        )}';\n\n`;
 
         const iso2 = country.iso2.toUpperCase();
 
         const countryNameComment = `/** ${iso2Dictionary[iso2]} */\n`;
 
-        let str = `${countryNameComment}const ${iso2}: ${
-          Names.PHONE_NUMBER_FORMAT
-        }=[${key},'${country.iso2}',${country.formats
+        let str = `${countryNameComment}const ${iso2}:${basename(
+          PHONE_NUMBER_FORMAT_TYPE_FILE_PATH,
+          extname(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH),
+        )}=[${key},'${country.iso2}',${country.formats
           .reduce<(string | number)[]>((acc, item) => {
             if (item.length > longestNumber) {
               longestNumber = item.length;
@@ -409,7 +438,10 @@ async function run(): Promise<void> {
                 formatsFile += `${INTERNAL}export const ${variableName}='${variable.format}';\n\n`;
               }
 
-              _import += `import {${variableName}} from '../../utils/${Names.CONSTANTS}';\n\n`;
+              _import += `import {${variableName}} from '${relative(
+                PHONE_NUMBER_FORMATS_FOLDER_PATH,
+                CONSTANTS_FILE_PATH,
+              )}';\n\n`;
 
               acc.push(variableName);
             } else {
@@ -430,12 +462,12 @@ async function run(): Promise<void> {
         countries.add(iso2);
 
         await addFile(
-          `src/${Names.PHONE_NUMBER_FORMATS}/${iso2}/index.ts`,
+          `${PHONE_NUMBER_FORMATS_FOLDER_PATH}/${iso2}/index.ts`,
           `${_import}${str}];\n\nexport default ${iso2};`,
         );
 
         await addFile(
-          `src/${Names.PHONE_VALIDATION_PATTERNS}/${iso2}/index.ts`,
+          `${PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH}/${iso2}/index.ts`,
           `${countryNameComment}const ${iso2}=/^(?:${country.pattern})$/;\n\nexport default ${iso2};`,
         );
       }
@@ -444,21 +476,31 @@ async function run(): Promise<void> {
     if (countries.size) {
       const arr1 = Array.from(countries).sort();
 
-      await addFile(
-        `src/${Names.PHONE_VALIDATION_PATTERNS}/index.ts`,
-
-        `${arr1
-          .map(iso2 => `import ${iso2} from './${iso2}';`)
-          .join('\n')}\n\nconst ${Names.PHONE_VALIDATION_PATTERNS}={${arr1.join(
-          ',',
-        )}};\n\nexport default ${Names.PHONE_VALIDATION_PATTERNS};`,
+      const phoneNumberValidationPatternsVariableName = basename(
+        PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH,
       );
 
       await addFile(
-        `src/types/${Names.ISO2}.ts`,
-        `type ISO2=${arr1
+        `${PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH}/index.ts`,
+        `${arr1
+          .map(iso2 => `import ${iso2} from './${iso2}';`)
+          .join(
+            '\n',
+          )}\n\nconst ${phoneNumberValidationPatternsVariableName}={${arr1.join(
+          ',',
+        )}};\n\nexport default ${phoneNumberValidationPatternsVariableName};`,
+      );
+
+      const iso2TypeName = basename(
+        ISO2_TYPE_FILE_PATH,
+        extname(ISO2_TYPE_FILE_PATH),
+      );
+
+      await addFile(
+        ISO2_TYPE_FILE_PATH,
+        `type ${iso2TypeName}=${arr1
           .map(item => `'${item}'`)
-          .join('|')};\n\nexport default ISO2;`,
+          .join('|')};\n\nexport default ${iso2TypeName};`,
       );
 
       const arr2 = Object.keys(nameDictionary)
@@ -473,23 +515,35 @@ async function run(): Promise<void> {
           return acc;
         }, [] as string[]);
 
+      const phoneNumberUtilsVariableName = basename(
+        PHONE_NUMBER_UTILS_FOLDER_PATH,
+      );
+
       await addFile(
-        `src/${Names.PHONE_NUMBER_UTILS}/index.ts`,
+        `${PHONE_NUMBER_UTILS_FOLDER_PATH}/index.ts`,
         `${arr2
           .map(
             iso2 =>
-              `import ${iso2} from '../${Names.PHONE_NUMBER_FORMATS}/${iso2}';`,
+              `import ${iso2} from '${relative(
+                PHONE_NUMBER_UTILS_FOLDER_PATH,
+                PHONE_NUMBER_FORMATS_FOLDER_PATH,
+              )}/${iso2}';`,
           )
-          .join('\n')}\n\nimport ${Names.CREATE_PHONE_NUMBER_UTILS} from '../${
-          Names.CREATE_PHONE_NUMBER_UTILS
-        }';\n\nconst ${Names.PHONE_NUMBER_UTILS} = ${
-          Names.CREATE_PHONE_NUMBER_UTILS
-        }([${arr2.join(',')}]);\n\nexport default ${Names.PHONE_NUMBER_UTILS};`,
+          .join('\n')}\n\nimport ${basename(
+          CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH,
+        )} from '${relative(
+          PHONE_NUMBER_UTILS_FOLDER_PATH,
+          CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH,
+        )}';\n\nconst ${phoneNumberUtilsVariableName}=${basename(
+          CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH,
+        )}([${arr2.join(
+          ',',
+        )}]);\n\nexport default ${phoneNumberUtilsVariableName};`,
       );
     }
 
     await addFile(
-      `src/utils/${Names.CONSTANTS}.ts`,
+      CONSTANTS_FILE_PATH,
       `${INTERNAL}export const MAX_CALLING_CODE_LENGTH=${longestCallingCode};\n\n${INTERNAL}export const MAX_NUMBER_LENGTH=${longestNumber};\n\n${INTERNAL}export const MASK_SYMBOL='${MASK_SYMBOL}';\n\n${formatsFile}`,
     );
 
@@ -506,14 +560,6 @@ async function run(): Promise<void> {
         sha: baseSHA,
       });
 
-      const newTreeSHA = (
-        await octokit.git.createTree({
-          ...myRepo,
-          tree: files,
-          base_tree: baseSHA,
-        })
-      ).data.sha;
-
       const commitMessage = 'Commit changes';
 
       await octokit.git.updateRef({
@@ -523,7 +569,13 @@ async function run(): Promise<void> {
           await octokit.git.createCommit({
             ...myRepo,
             message: commitMessage,
-            tree: newTreeSHA,
+            tree: (
+              await octokit.git.createTree({
+                ...myRepo,
+                tree: files,
+                base_tree: baseSHA,
+              })
+            ).data.sha,
             parents: [baseSHA],
           })
         ).data.sha,
