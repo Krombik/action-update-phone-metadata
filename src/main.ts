@@ -60,8 +60,8 @@ async function run(): Promise<void> {
 
   const CONSTANTS_FILE_PATH = SRC + core.getInput('constants-file-path');
 
-  const PHONE_NUMBER_FORMAT_TYPE_FILE_PATH =
-    SRC + core.getInput('phone-number-format-type-file-path');
+  const PHONE_NUMBER_DATA_TYPE_FILE_PATH =
+    SRC + core.getInput('phone-number-data-type-file-path');
 
   const ISO2_TYPE_FILE_PATH = SRC + core.getInput('iso2-type-file-path');
 
@@ -405,11 +405,11 @@ async function run(): Promise<void> {
         const country = item[i];
 
         let _import = `import ${basename(
-          PHONE_NUMBER_FORMAT_TYPE_FILE_PATH,
-          extname(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH),
+          PHONE_NUMBER_DATA_TYPE_FILE_PATH,
+          extname(PHONE_NUMBER_DATA_TYPE_FILE_PATH),
         )} from '${relative(
-          PHONE_NUMBER_FORMATS_FOLDER_PATH,
-          PHONE_NUMBER_FORMAT_TYPE_FILE_PATH,
+          `${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`,
+          PHONE_NUMBER_DATA_TYPE_FILE_PATH,
         )}';\n\n`;
 
         const iso2 = country.iso2.toUpperCase();
@@ -417,8 +417,8 @@ async function run(): Promise<void> {
         const countryNameComment = `/** ${iso2Dictionary[iso2]} */\n`;
 
         let str = `${countryNameComment}const ${iso2}:${basename(
-          PHONE_NUMBER_FORMAT_TYPE_FILE_PATH,
-          extname(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH),
+          PHONE_NUMBER_DATA_TYPE_FILE_PATH,
+          extname(PHONE_NUMBER_DATA_TYPE_FILE_PATH),
         )}=[${key},'${country.iso2}',${country.formats
           .reduce<(string | number)[]>((acc, item) => {
             if (item.length > longestNumber) {
@@ -439,7 +439,7 @@ async function run(): Promise<void> {
               }
 
               _import += `import {${variableName}} from '${relative(
-                PHONE_NUMBER_FORMATS_FOLDER_PATH,
+                `${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`,
                 CONSTANTS_FILE_PATH,
               )}';\n\n`;
 

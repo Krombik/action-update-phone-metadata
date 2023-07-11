@@ -7,7 +7,7 @@ inputs:
     description: 'token'
   constants-file-path:
     required: true
-  phone-number-format-type-file-path:
+  phone-number-data-type-file-path:
     required: true
   iso2-type-file-path:
     required: true

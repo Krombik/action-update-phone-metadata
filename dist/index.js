@@ -55,7 +55,7 @@ function run() {
         const octokit = github.getOctokit(core.getInput('gh-token')).rest;
         const SRC = 'src/';
         const CONSTANTS_FILE_PATH = SRC + core.getInput('constants-file-path');
-        const PHONE_NUMBER_FORMAT_TYPE_FILE_PATH = SRC + core.getInput('phone-number-format-type-file-path');
+        const PHONE_NUMBER_DATA_TYPE_FILE_PATH = SRC + core.getInput('phone-number-data-type-file-path');
         const ISO2_TYPE_FILE_PATH = SRC + core.getInput('iso2-type-file-path');
         const PHONE_NUMBER_UTILS_FOLDER_PATH = SRC + core.getInput('phone-number-utils-folder-path');
         const CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH = SRC + core.getInput('create-phone-number-utils-folder-path');
@@ -252,10 +252,10 @@ function run() {
                 }
                 for (let i = 0; i < item.length; i++) {
                     const country = item[i];
-                    let _import = `import ${(0, path_1.basename)(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH, (0, path_1.extname)(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH))} from '${(0, path_1.relative)(PHONE_NUMBER_FORMATS_FOLDER_PATH, PHONE_NUMBER_FORMAT_TYPE_FILE_PATH)}';\n\n`;
+                    let _import = `import ${(0, path_1.basename)(PHONE_NUMBER_DATA_TYPE_FILE_PATH, (0, path_1.extname)(PHONE_NUMBER_DATA_TYPE_FILE_PATH))} from '${(0, path_1.relative)(`${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`, PHONE_NUMBER_DATA_TYPE_FILE_PATH)}';\n\n`;
                     const iso2 = country.iso2.toUpperCase();
                     const countryNameComment = `/** ${iso2Dictionary[iso2]} */\n`;
-                    let str = `${countryNameComment}const ${iso2}:${(0, path_1.basename)(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH, (0, path_1.extname)(PHONE_NUMBER_FORMAT_TYPE_FILE_PATH))}=[${key},'${country.iso2}',${country.formats
+                    let str = `${countryNameComment}const ${iso2}:${(0, path_1.basename)(PHONE_NUMBER_DATA_TYPE_FILE_PATH, (0, path_1.extname)(PHONE_NUMBER_DATA_TYPE_FILE_PATH))}=[${key},'${country.iso2}',${country.formats
                         .reduce((acc, item) => {
                         if (item.length > longestNumber) {
                             longestNumber = item.length;
@@ -268,7 +268,7 @@ function run() {
                                 formatsVariableSet.add(variableName);
                                 formatsFile += `${INTERNAL}export const ${variableName}='${variable.format}';\n\n`;
                             }
-                            _import += `import {${variableName}} from '${(0, path_1.relative)(PHONE_NUMBER_FORMATS_FOLDER_PATH, CONSTANTS_FILE_PATH)}';\n\n`;
+                            _import += `import {${variableName}} from '${(0, path_1.relative)(`${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`, CONSTANTS_FILE_PATH)}';\n\n`;
                             acc.push(variableName);
                         }
                         else {
