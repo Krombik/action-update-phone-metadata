@@ -46,7 +46,7 @@ interface Territory {
 async function run(): Promise<void> {
   core.info('start');
 
-  const baseBranch = 'main';
+  const baseBranch = github.context.ref.replace('refs/heads/', '');
 
   const MASK_SYMBOL = '0';
 
@@ -80,8 +80,6 @@ async function run(): Promise<void> {
   const myRepo = github.context.repo;
 
   try {
-    core.info(github.context.ref);
-
     const { files, addFile } = handleGenerate(
       JSON.parse(await getFile('.prettierrc', true, myRepo, baseBranch)),
       myRepo,
@@ -534,17 +532,11 @@ async function run(): Promise<void> {
     );
 
     if (files.length) {
-      const newBranch = `action/metadata/${
-        new Date().toISOString().split('T')[0]
-      }`;
+      const date = new Date().toISOString().split('T')[0];
 
-      const baseSHA = (
-        await octokit.repos.getBranch({ ...myRepo, branch: baseBranch })
-      ).data.commit.sha;
+      const newBranch = `action/metadata/${date}`;
 
-      core.info(baseSHA);
-
-      core.info(github.context.sha);
+      const baseSHA = github.context.sha;
 
       await octokit.git.createRef({
         ...myRepo,
@@ -576,7 +568,8 @@ async function run(): Promise<void> {
         issue_number: (
           await octokit.pulls.create({
             ...myRepo,
-            title: 'Update Phone Number Data',
+            title: `[${date}] Update Phone Number Data`,
+            body: 'Updated metadata to last version',
             head: newBranch,
             base: baseBranch,
           })

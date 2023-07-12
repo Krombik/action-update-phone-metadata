@@ -48,7 +48,7 @@ const path_1 = __nccwpck_require__(1017);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         core.info('start');
-        const baseBranch = 'main';
+        const baseBranch = github.context.ref.replace('refs/heads/', '');
         const MASK_SYMBOL = '0';
         const INTERNAL = '/** @internal */\n';
         const googleBaseBranch = 'master';
@@ -63,7 +63,6 @@ function run() {
         const PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH = SRC + core.getInput('phone-number-validation-patterns-folder-path');
         const myRepo = github.context.repo;
         try {
-            core.info(github.context.ref);
             const { files, addFile } = (0, utils_1.handleGenerate)(JSON.parse(yield (0, utils_1.getFile)('.prettierrc', true, myRepo, baseBranch)), myRepo, baseBranch);
             core.info('prettier config loaded');
             const [withoutFormatObj, addToWithoutFormatObj] = (0, utils_1.handleUnique)();
@@ -304,13 +303,12 @@ function run() {
             }
             yield addFile(CONSTANTS_FILE_PATH, `${INTERNAL}export const MAX_CALLING_CODE_LENGTH=${longestCallingCode};\n\n${INTERNAL}export const MAX_NUMBER_LENGTH=${longestNumber};\n\n${INTERNAL}export const MASK_SYMBOL='${MASK_SYMBOL}';\n\n${formatsFile}`);
             if (files.length) {
-                const newBranch = `action/metadata/${new Date().toISOString().split('T')[0]}`;
-                const baseSHA = (yield octokit.repos.getBranch(Object.assign(Object.assign({}, myRepo), { branch: baseBranch }))).data.commit.sha;
-                core.info(baseSHA);
-                core.info(github.context.sha);
+                const date = new Date().toISOString().split('T')[0];
+                const newBranch = `action/metadata/${date}`;
+                const baseSHA = github.context.sha;
                 yield octokit.git.createRef(Object.assign(Object.assign({}, myRepo), { ref: `refs/heads/${newBranch}`, sha: baseSHA }));
                 yield octokit.git.updateRef(Object.assign(Object.assign({}, myRepo), { ref: `heads/${newBranch}`, sha: (yield octokit.git.createCommit(Object.assign(Object.assign({}, myRepo), { message: 'Metadata synchronization', tree: (yield octokit.git.createTree(Object.assign(Object.assign({}, myRepo), { tree: files, base_tree: baseSHA }))).data.sha, parents: [baseSHA] }))).data.sha }));
-                yield octokit.issues.addLabels(Object.assign(Object.assign({}, myRepo), { issue_number: (yield octokit.pulls.create(Object.assign(Object.assign({}, myRepo), { title: 'Update Phone Number Data', head: newBranch, base: baseBranch }))).data.number, labels: ['auto generated'] }));
+                yield octokit.issues.addLabels(Object.assign(Object.assign({}, myRepo), { issue_number: (yield octokit.pulls.create(Object.assign(Object.assign({}, myRepo), { title: `[${date}] Update Phone Number Data`, body: 'Updated metadata to last version', head: newBranch, base: baseBranch }))).data.number, labels: ['auto generated'] }));
             }
             core.info(`updated ${files.length} files`);
         }
