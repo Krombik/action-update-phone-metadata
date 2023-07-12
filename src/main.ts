@@ -80,6 +80,8 @@ async function run(): Promise<void> {
   const myRepo = github.context.repo;
 
   try {
+    core.info(github.context.ref);
+
     const { files, addFile } = handleGenerate(
       JSON.parse(await getFile('.prettierrc', true, myRepo, baseBranch)),
       myRepo,
@@ -87,22 +89,6 @@ async function run(): Promise<void> {
     );
 
     core.info('prettier config loaded');
-
-    // const enum Names {
-    //   CONSTANTS = 'constants',
-
-    //   PHONE_NUMBER_UTILS = 'phoneNumberUtils',
-
-    //   CREATE_PHONE_NUMBER_UTILS = 'createPhoneNumberUtils',
-
-    //   PHONE_NUMBER_FORMATS = 'phoneNumberFormats',
-
-    //   PHONE_NUMBER_FORMAT = 'PhoneNumberFormat',
-
-    //   PHONE_VALIDATION_PATTERNS = 'phoneValidationPatterns',
-
-    //   ISO2 = 'iso2',
-    // }
 
     const [withoutFormatObj, addToWithoutFormatObj] = handleUnique<
       number,
@@ -548,11 +534,17 @@ async function run(): Promise<void> {
     );
 
     if (files.length) {
-      const newBranch = 'next';
+      const newBranch = `action/metadata/${
+        new Date().toISOString().split('T')[0]
+      }`;
 
       const baseSHA = (
         await octokit.repos.getBranch({ ...myRepo, branch: baseBranch })
       ).data.commit.sha;
+
+      core.info(baseSHA);
+
+      core.info(github.context.sha);
 
       await octokit.git.createRef({
         ...myRepo,
@@ -560,15 +552,13 @@ async function run(): Promise<void> {
         sha: baseSHA,
       });
 
-      const commitMessage = 'Commit changes';
-
       await octokit.git.updateRef({
         ...myRepo,
         ref: `heads/${newBranch}`,
         sha: (
           await octokit.git.createCommit({
             ...myRepo,
-            message: commitMessage,
+            message: 'Metadata synchronization',
             tree: (
               await octokit.git.createTree({
                 ...myRepo,
@@ -581,15 +571,17 @@ async function run(): Promise<void> {
         ).data.sha,
       });
 
-      const pullRequestTitle = 'New Pull Request';
-      const pullRequestBody = 'This is a new pull request';
-
-      await octokit.pulls.create({
+      await octokit.issues.addLabels({
         ...myRepo,
-        title: pullRequestTitle,
-        body: pullRequestBody,
-        head: newBranch,
-        base: baseBranch,
+        issue_number: (
+          await octokit.pulls.create({
+            ...myRepo,
+            title: 'Update Phone Number Data',
+            head: newBranch,
+            base: baseBranch,
+          })
+        ).data.number,
+        labels: ['auto generated'],
       });
     }
 
