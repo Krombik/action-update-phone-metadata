@@ -397,7 +397,7 @@ async function run(): Promise<void> {
         )} from '${relative(
           `${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`,
           PHONE_NUMBER_DATA_TYPE_FILE_PATH,
-        ).slice(0, -2)}';\n\n`;
+        ).slice(0, -3)}';\n\n`;
 
         const iso2 = country.iso2.toUpperCase();
 
@@ -428,7 +428,7 @@ async function run(): Promise<void> {
               _import += `import {${variableName}} from '${relative(
                 `${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`,
                 CONSTANTS_FILE_PATH,
-              ).slice(0, -2)}';\n\n`;
+              ).slice(0, -3)}';\n\n`;
 
               acc.push(variableName);
             } else {
