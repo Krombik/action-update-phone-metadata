@@ -243,7 +243,7 @@ function run() {
                 }
                 for (let i = 0; i < item.length; i++) {
                     const country = item[i];
-                    let _import = `import ${(0, path_1.basename)(PHONE_NUMBER_DATA_TYPE_FILE_PATH, (0, path_1.extname)(PHONE_NUMBER_DATA_TYPE_FILE_PATH))} from '${(0, path_1.relative)(`${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`, PHONE_NUMBER_DATA_TYPE_FILE_PATH)}';\n\n`;
+                    let _import = `import ${(0, path_1.basename)(PHONE_NUMBER_DATA_TYPE_FILE_PATH, (0, path_1.extname)(PHONE_NUMBER_DATA_TYPE_FILE_PATH))} from '${(0, path_1.relative)(`${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`, PHONE_NUMBER_DATA_TYPE_FILE_PATH).slice(0, -2)}';\n\n`;
                     const iso2 = country.iso2.toUpperCase();
                     const countryNameComment = `/** ${iso2Dictionary[iso2]} */\n`;
                     let str = `${countryNameComment}const ${iso2}:${(0, path_1.basename)(PHONE_NUMBER_DATA_TYPE_FILE_PATH, (0, path_1.extname)(PHONE_NUMBER_DATA_TYPE_FILE_PATH))}=[${key},'${country.iso2}',${country.formats
@@ -259,7 +259,7 @@ function run() {
                                 formatsVariableSet.add(variableName);
                                 formatsFile += `${INTERNAL}export const ${variableName}='${variable.format}';\n\n`;
                             }
-                            _import += `import {${variableName}} from '${(0, path_1.relative)(`${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`, CONSTANTS_FILE_PATH)}';\n\n`;
+                            _import += `import {${variableName}} from '${(0, path_1.relative)(`${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`, CONSTANTS_FILE_PATH).slice(0, -2)}';\n\n`;
                             acc.push(variableName);
                         }
                         else {
