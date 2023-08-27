@@ -1,8 +1,8 @@
 {
-  "name": "typescript-action",
-  "version": "0.0.0",
+  "name": "action-update-phone-metadata",
+  "version": "1.0.0",
   "private": true,
-  "description": "TypeScript template action",
+  "description": "",
   "main": "lib/main.js",
   "scripts": {
     "build": "tsc",
@@ -14,21 +14,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/Krombik/action-update-phone-metadata.git"
   },
   "keywords": [
     "actions",
     "node",
     "setup"
   ],
-  "author": "",
+  "author": "Andrii Dubetskyi",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.10.0",
     "@actions/github": "^5.1.1",
     "axios": "^1.4.0",
-    "csv-parse": "^5.4.0",
-    "fast-xml-parser": "^4.2.5"
+    "csv-parse": "^5.5.0",
+    "fast-xml-parser": "^4.2.7"
   },
   "devDependencies": {
     "@types/node": "^20.4.1",

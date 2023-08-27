@@ -81,7 +81,10 @@ async function run(): Promise<void> {
 
   try {
     const { files, addFile } = handleGenerate(
-      JSON.parse(await getFile('.prettierrc', true, myRepo, baseBranch)),
+      {
+        parser: 'babel-ts',
+        ...JSON.parse(await getFile('.prettierrc', true, myRepo, baseBranch)),
+      },
       myRepo,
       baseBranch,
     );
@@ -151,18 +154,18 @@ async function run(): Promise<void> {
       const formats =
         formatsCvs && (parse(formatsCvs, parserOptions) as Format[]);
 
-      const lll = await getFile(
+      const ranges = await getFile(
         `resources/metadata/${callingCode}/ranges.csv`,
         true,
         googleRepo,
         googleBaseBranch,
       );
 
-      if (!lll) {
+      if (!ranges) {
         core.info(`${callingCode} is empty`);
       }
 
-      parse(lll, {
+      parse(ranges, {
         onRecord(record: Ranges) {
           if (
             record.Type === 'MOBILE' ||

@@ -63,7 +63,7 @@ function run() {
         const PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH = SRC + core.getInput('phone-number-validation-patterns-folder-path');
         const myRepo = github.context.repo;
         try {
-            const { files, addFile } = (0, utils_1.handleGenerate)(JSON.parse(yield (0, utils_1.getFile)('.prettierrc', true, myRepo, baseBranch)), myRepo, baseBranch);
+            const { files, addFile } = (0, utils_1.handleGenerate)(Object.assign({ parser: 'babel-ts' }, JSON.parse(yield (0, utils_1.getFile)('.prettierrc', true, myRepo, baseBranch))), myRepo, baseBranch);
             core.info('prettier config loaded');
             const [withoutFormatObj, addToWithoutFormatObj] = (0, utils_1.handleUnique)();
             const [formatObj, addToFormatObj] = (0, utils_1.handleUnique)();
@@ -87,11 +87,11 @@ function run() {
                 const callingCode = metadata[i]['Calling Code'];
                 const formatsCvs = yield (0, utils_1.getFile)(`resources/metadata/${callingCode}/formats.csv`, false, googleRepo, googleBaseBranch);
                 const formats = formatsCvs && (0, sync_1.parse)(formatsCvs, parserOptions);
-                const lll = yield (0, utils_1.getFile)(`resources/metadata/${callingCode}/ranges.csv`, true, googleRepo, googleBaseBranch);
-                if (!lll) {
+                const ranges = yield (0, utils_1.getFile)(`resources/metadata/${callingCode}/ranges.csv`, true, googleRepo, googleBaseBranch);
+                if (!ranges) {
                     core.info(`${callingCode} is empty`);
                 }
-                (0, sync_1.parse)(lll, Object.assign({ onRecord(record) {
+                (0, sync_1.parse)(ranges, Object.assign({ onRecord(record) {
                         if (record.Type === 'MOBILE' ||
                             record.Type === 'FIXED_LINE_OR_MOBILE') {
                             const regions = record.Regions.split(',');
