@@ -189,9 +189,20 @@ async function run(): Promise<void> {
                   )!.International;
 
                   if (value && value.indexOf('{X>}') == -1) {
+                    let format = value.replace(/[*X]/g, MASK_SYMBOL);
+
+                    let l = length;
+
+                    // handling Argentina format https://github.com/google/libphonenumber/blob/master/resources/metadata/54/README
+                    if (iso2 == 'AR') {
+                      format = `${MASK_SYMBOL} ${format}`;
+
+                      l++;
+                    }
+
                     return {
-                      format: value.replace(/[*X]/g, MASK_SYMBOL),
-                      length,
+                      format,
+                      length: l,
                       index: -1,
                     };
                   }
@@ -238,11 +249,12 @@ async function run(): Promise<void> {
 
         arr.sort((a, b) => a.length - b.length);
 
-        formatObj[key] = arr.filter((item, index, self) => {
-          return !self.some(
-            (kek, j) => j != index && kek.format.startsWith(item.format),
-          );
-        });
+        formatObj[key] = arr.filter(
+          (item, index, self) =>
+            !self.some(
+              (data, j) => j != index && data.format.startsWith(item.format),
+            ),
+        );
       }
     }
 
