@@ -1,9 +1,28 @@
-import * as core from '@actions/core';
-import * as github from '@actions/github';
+import { getInput, info, setFailed, setOutput, warning } from '@actions/core';
+import { context, getOctokit } from '@actions/github';
 import { XMLParser } from 'fast-xml-parser';
-import { parse, Options } from 'csv-parse/sync';
-import { Repo, handleGenerate, getFile, handleUnique } from './utils';
-import { basename, extname, relative } from 'path';
+import { parse } from 'csv-parse/sync';
+import type { Repo } from '#src/utils';
+import {
+  assertSafeComment,
+  assertSafeFormat,
+  assertSafeIso2,
+  assertSafePattern,
+  handleGenerate,
+  getFile,
+  handleUnique,
+} from '#src/utils';
+import {
+  printArray,
+  printAssignment,
+  printCallWithArray,
+  printDefaultImport,
+  printNamedImport,
+  printObject,
+  printUnion,
+} from '#src/print';
+import { createHash } from 'node:crypto';
+import { basename, extname } from 'node:path';
 
 type Metadata = Record<
   'Calling Code' | 'Extra Regions' | 'Main Region',
@@ -24,7 +43,7 @@ type CountryData = {
   leadingDigits?: string;
 };
 
-interface Welcome2 {
+interface PhoneNumberMetadataXml {
   phoneNumberMetadata: {
     territories: {
       __comment: string[];
@@ -44,9 +63,9 @@ interface Territory {
 }
 
 async function run(): Promise<void> {
-  core.info('start');
+  info('start');
 
-  const baseBranch = github.context.ref.replace('refs/heads/', '');
+  const baseBranch = context.ref.replace('refs/heads/', '');
 
   const MASK_SYMBOL = '0';
 
@@ -54,42 +73,38 @@ async function run(): Promise<void> {
 
   const googleBaseBranch = 'master';
 
-  const octokit = github.getOctokit(core.getInput('gh-token')).rest;
+  const octokit = getOctokit(getInput('gh-token')).rest;
 
   const SRC = 'src/';
 
-  const CONSTANTS_FILE_PATH = SRC + core.getInput('constants-file-path');
+  // the lib imports its own modules through its package.json `#src/*` subpath
+  // imports, never relatively
+  const alias = (filePath: string) =>
+    `#src/${filePath.slice(SRC.length).replace(/\.ts$/, '')}`;
+
+  const CONSTANTS_FILE_PATH = SRC + getInput('constants-file-path');
 
   const PHONE_NUMBER_DATA_TYPE_FILE_PATH =
-    SRC + core.getInput('phone-number-data-type-file-path');
+    SRC + getInput('phone-number-data-type-file-path');
 
-  const ISO2_TYPE_FILE_PATH = SRC + core.getInput('iso2-type-file-path');
+  const ISO2_TYPE_FILE_PATH = SRC + getInput('iso2-type-file-path');
 
   const PHONE_NUMBER_UTILS_FOLDER_PATH =
-    SRC + core.getInput('phone-number-utils-folder-path');
+    SRC + getInput('phone-number-utils-folder-path');
 
   const CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH =
-    SRC + core.getInput('create-phone-number-utils-folder-path');
+    SRC + getInput('create-phone-number-utils-folder-path');
 
   const PHONE_NUMBER_FORMATS_FOLDER_PATH =
-    SRC + core.getInput('phone-number-formats-folder-path');
+    SRC + getInput('phone-number-formats-folder-path');
 
   const PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH =
-    SRC + core.getInput('phone-number-validation-patterns-folder-path');
+    SRC + getInput('phone-number-validation-patterns-folder-path');
 
-  const myRepo = github.context.repo;
+  const myRepo = context.repo;
 
   try {
-    const { files, addFile } = handleGenerate(
-      {
-        parser: 'babel-ts',
-        ...JSON.parse(await getFile('.prettierrc', true, myRepo, baseBranch)),
-      },
-      myRepo,
-      baseBranch,
-    );
-
-    core.info('prettier config loaded');
+    const { files, addFile } = handleGenerate(myRepo, baseBranch);
 
     const [withoutFormatObj, addToWithoutFormatObj] = handleUnique<
       number,
@@ -98,7 +113,7 @@ async function run(): Promise<void> {
 
     const [formatObj, addToFormatObj] = handleUnique<string, FormatData>();
 
-    const parserOptions: Options = {
+    const parserOptions = {
       columns: true,
       delimiter: ';',
       relax_quotes: true,
@@ -106,11 +121,11 @@ async function run(): Promise<void> {
       trim: true,
       skip_empty_lines: true,
       skip_records_with_empty_values: true,
-    };
+    } as const;
 
     const googleRepo: Repo = { owner: 'google', repo: 'libphonenumber' };
 
-    const metadata: Metadata[] = parse(
+    const metadata = parse<Metadata>(
       await getFile(
         'resources/metadata/metadata.csv',
         true,
@@ -119,7 +134,7 @@ async function run(): Promise<void> {
       ),
       {
         ...parserOptions,
-        onRecord(record: Metadata) {
+        onRecord(record) {
           if (record['Main Region'] !== '001') {
             return record;
           }
@@ -127,7 +142,7 @@ async function run(): Promise<void> {
       },
     );
 
-    core.info('metadata.csv loaded');
+    info('metadata.csv loaded');
 
     for (let i = 0; i < metadata.length; i++) {
       type Ranges = Record<
@@ -151,8 +166,7 @@ async function run(): Promise<void> {
         googleBaseBranch,
       );
 
-      const formats =
-        formatsCvs && (parse(formatsCvs, parserOptions) as Format[]);
+      const formats = formatsCvs && parse<Format>(formatsCvs, parserOptions);
 
       const ranges = await getFile(
         `resources/metadata/${callingCode}/ranges.csv`,
@@ -162,11 +176,12 @@ async function run(): Promise<void> {
       );
 
       if (!ranges) {
-        core.info(`${callingCode} is empty`);
+        info(`${callingCode} is empty`);
       }
 
-      parse(ranges, {
-        onRecord(record: Ranges) {
+      parse<Ranges>(ranges, {
+        ...parserOptions,
+        onRecord(record) {
           if (
             record.Type === 'MOBILE' ||
             record.Type === 'FIXED_LINE_OR_MOBILE'
@@ -179,13 +194,13 @@ async function run(): Promise<void> {
 
             const length = +arr[arr.length - 1];
 
-            for (let i = regions.length; i--; ) {
+            for (let i = regions.length; i--;) {
               const iso2 = regions[i];
 
               if (formats && format) {
                 addToFormatObj(iso2, format, () => {
                   const value = formats.find(
-                    (item: any) => item.Id === format,
+                    item => item.Id === format,
                   )!.International;
 
                   if (value && value.indexOf('{X>}') == -1) {
@@ -217,12 +232,14 @@ async function run(): Promise<void> {
             }
           }
         },
-        ...parserOptions,
       });
     }
 
     for (const key in withoutFormatObj) {
-      if (!(key in formatObj)) {
+      // handleUnique creates the key before it knows whether the format is usable,
+      // so a country whose every format was skipped is present but empty - it still
+      // needs the plain-mask fallback
+      if (!formatObj[key]?.length) {
         formatObj[key] = withoutFormatObj[key];
       }
     }
@@ -298,7 +315,7 @@ async function run(): Promise<void> {
       }
     }
 
-    core.info('formats handled');
+    info('formats handled');
 
     const { territories } = (
       new XMLParser({
@@ -315,10 +332,12 @@ async function run(): Promise<void> {
           googleRepo,
           googleBaseBranch,
         ),
-      ) as Welcome2
+      ) as PhoneNumberMetadataXml
     ).phoneNumberMetadata;
 
-    core.info('PhoneNumberMetadata.xml loaded');
+    info('PhoneNumberMetadata.xml loaded');
+
+    let skipped = 0;
 
     const nameDictionary = {} as Record<string, string>;
 
@@ -352,8 +371,14 @@ async function run(): Promise<void> {
         continue;
       }
 
-      if (!formatObj[_id]) {
-        core.debug(`${_id} formats is absent`);
+      // without formats the country would emit `[callingCode, iso2]`, which is not
+      // a valid PhoneNumberData - skip it loudly rather than failing the whole sync
+      if (!formatObj[_id]?.length) {
+        warning(`${_id} has no formats, skipping`);
+
+        skipped++;
+
+        continue;
       }
 
       const country: CountryData = {
@@ -383,9 +408,13 @@ async function run(): Promise<void> {
       }
     }
 
-    let formatsFile = '';
+    // the variable name is derived from the format itself, so it survives
+    // unrelated formats being added or removed - a positional index renumbered
+    // (and so rewrote) every country file on any change
+    const formatVariableName = (format: string) =>
+      `format${createHash('sha256').update(format).digest('hex').slice(0, 8)}`;
 
-    const formatsVariableSet = new Set<string>();
+    const formatsVariables = new Map<string, string>();
 
     let longestNumber = 0;
 
@@ -403,23 +432,26 @@ async function run(): Promise<void> {
       for (let i = 0; i < item.length; i++) {
         const country = item[i];
 
-        let _import = `import ${basename(
-          PHONE_NUMBER_DATA_TYPE_FILE_PATH,
-          extname(PHONE_NUMBER_DATA_TYPE_FILE_PATH),
-        )} from '${relative(
-          `${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`,
-          PHONE_NUMBER_DATA_TYPE_FILE_PATH,
-        ).slice(0, -3)}';\n\n`;
+        let _import = `${printDefaultImport(
+          basename(
+            PHONE_NUMBER_DATA_TYPE_FILE_PATH,
+            extname(PHONE_NUMBER_DATA_TYPE_FILE_PATH),
+          ),
+          alias(PHONE_NUMBER_DATA_TYPE_FILE_PATH),
+        )}\n\n`;
 
         const iso2 = country.iso2.toUpperCase();
 
+        assertSafeIso2(iso2);
+
+        assertSafeComment(iso2Dictionary[iso2]);
+
+        assertSafePattern(country.pattern);
+
         const countryNameComment = `/** ${iso2Dictionary[iso2]} */\n`;
 
-        let str = `${countryNameComment}const ${iso2}:${basename(
-          PHONE_NUMBER_DATA_TYPE_FILE_PATH,
-          extname(PHONE_NUMBER_DATA_TYPE_FILE_PATH),
-        )}=[${key},'${country.iso2}',${country.formats
-          .reduce<(string | number)[]>((acc, item) => {
+        const items = country.formats.reduce<(string | number)[]>(
+          (acc, item) => {
             if (item.length > longestNumber) {
               longestNumber = item.length;
             }
@@ -429,48 +461,99 @@ async function run(): Promise<void> {
             const variable = formatsList[item.index];
 
             if (variable.repeatingTimes) {
-              const variableName = `format${item.index}`;
+              assertSafeFormat(variable.format);
 
-              if (!formatsVariableSet.has(variableName)) {
-                formatsVariableSet.add(variableName);
+              const variableName = formatVariableName(variable.format);
 
-                formatsFile += `${INTERNAL}export const ${variableName}='${variable.format}';\n\n`;
-              }
+              formatsVariables.set(variableName, variable.format);
 
-              _import += `import {${variableName}} from '${relative(
-                `${PHONE_NUMBER_FORMATS_FOLDER_PATH}/*`,
-                CONSTANTS_FILE_PATH,
-              ).slice(0, -3)}';\n\n`;
+              _import += `${printNamedImport(
+                [variableName],
+                alias(CONSTANTS_FILE_PATH),
+              )}\n\n`;
 
               acc.push(variableName);
             } else {
+              assertSafeFormat(item.format);
+
               acc.push(`'${item.format}'`);
             }
 
             return acc;
-          }, [])
-          .join(',')}`;
+          },
+          [key, `'${country.iso2}'`],
+        );
 
         if (item.length > 1 && !country.mainCountryForCode) {
-          str += `,/^(?:${
+          const leadingDigits =
             country.leadingDigits ||
-            country.pattern.replace(/\\d(?:\{\d+\})?/g, '')
-          })/`;
+            country.pattern.replace(/\\d(?:\{\d+\})?/g, '');
+
+          assertSafePattern(leadingDigits);
+
+          items.push(`/^(?:${leadingDigits})/`);
         }
 
         countries.add(iso2);
 
+        const dataType = basename(
+          PHONE_NUMBER_DATA_TYPE_FILE_PATH,
+          extname(PHONE_NUMBER_DATA_TYPE_FILE_PATH),
+        );
+
         await addFile(
           `${PHONE_NUMBER_FORMATS_FOLDER_PATH}/${iso2}/index.ts`,
-          `${_import}${str}];\n\nexport default ${iso2};`,
+          `${_import}${countryNameComment}${printArray(
+            `const ${iso2}: ${dataType}`,
+            items.map(String),
+          )}\n\nexport default ${iso2};`,
         );
 
         await addFile(
           `${PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH}/${iso2}/index.ts`,
-          `${countryNameComment}const ${iso2}=/^(?:${country.pattern})$/;\n\nexport default ${iso2};`,
+          `${countryNameComment}${printAssignment(
+            `const ${iso2}`,
+            `/^(?:${country.pattern})$/`,
+          )}\n\nexport default ${iso2};`,
         );
       }
     }
+
+    // Nothing downstream reviews this - the commit lands on the base branch and
+    // ships straight to npm - so refuse to write a dataset that looks wrong. These
+    // bounds are deliberately loose: they catch upstream going missing or changing
+    // shape, not ordinary metadata churn.
+    const previousCountries = (
+      await getFile(ISO2_TYPE_FILE_PATH, false, myRepo, baseBranch)
+    )?.match(/'[A-Z]{2}'/g)?.length;
+
+    if (countries.size < 200) {
+      throw new Error(`only ${countries.size} countries were generated`);
+    }
+
+    if (previousCountries && countries.size < previousCountries - 5) {
+      throw new Error(
+        `countries dropped from ${previousCountries} to ${countries.size}`,
+      );
+    }
+
+    if (skipped > 3) {
+      throw new Error(`${skipped} countries had no formats`);
+    }
+
+    if (longestNumber < 7 || longestNumber > 20) {
+      throw new Error(`implausible longest number: ${longestNumber}`);
+    }
+
+    if (longestCallingCode < 1 || longestCallingCode > 4) {
+      throw new Error(
+        `implausible longest calling code: ${longestCallingCode}`,
+      );
+    }
+
+    info(
+      `${countries.size} countries, longest number ${longestNumber}, longest calling code ${longestCallingCode}`,
+    );
 
     if (countries.size) {
       const arr1 = Array.from(countries).sort();
@@ -482,12 +565,16 @@ async function run(): Promise<void> {
       await addFile(
         `${PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH}/index.ts`,
         `${arr1
-          .map(iso2 => `import ${iso2} from './${iso2}';`)
-          .join(
-            '\n',
-          )}\n\nconst ${phoneNumberValidationPatternsVariableName}={${arr1.join(
-          ',',
-        )}};\n\nexport default ${phoneNumberValidationPatternsVariableName};`,
+          .map(iso2 =>
+            printDefaultImport(
+              iso2,
+              `${alias(PHONE_NUMBER_VALIDATION_PATTERNS_FOLDER_PATH)}/${iso2}`,
+            ),
+          )
+          .join('\n')}\n\n${printObject(
+          `const ${phoneNumberValidationPatternsVariableName}`,
+          arr1,
+        )}\n\nexport default ${phoneNumberValidationPatternsVariableName};`,
       );
 
       const iso2TypeName = basename(
@@ -497,9 +584,10 @@ async function run(): Promise<void> {
 
       await addFile(
         ISO2_TYPE_FILE_PATH,
-        `type ${iso2TypeName}=${arr1
-          .map(item => `'${item}'`)
-          .join('|')};\n\nexport default ${iso2TypeName};`,
+        `${printUnion(
+          iso2TypeName,
+          arr1.map(item => `'${item}'`),
+        )}\n\nexport default ${iso2TypeName};`,
       );
 
       const arr2 = Object.keys(nameDictionary)
@@ -521,47 +609,49 @@ async function run(): Promise<void> {
       await addFile(
         `${PHONE_NUMBER_UTILS_FOLDER_PATH}/index.ts`,
         `${arr2
-          .map(
-            iso2 =>
-              `import ${iso2} from '${relative(
-                PHONE_NUMBER_UTILS_FOLDER_PATH,
-                PHONE_NUMBER_FORMATS_FOLDER_PATH,
-              )}/${iso2}';`,
+          .map(iso2 =>
+            printDefaultImport(
+              iso2,
+              `${alias(PHONE_NUMBER_FORMATS_FOLDER_PATH)}/${iso2}`,
+            ),
           )
-          .join('\n')}\n\nimport ${basename(
-          CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH,
-        )} from '${relative(
-          PHONE_NUMBER_UTILS_FOLDER_PATH,
-          CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH,
-        )}';\n\nconst ${phoneNumberUtilsVariableName}=${basename(
-          CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH,
-        )}([${arr2.join(
-          ',',
-        )}]);\n\nexport default ${phoneNumberUtilsVariableName};`,
+          .join('\n')}\n\n${printDefaultImport(
+          basename(CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH),
+          alias(CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH),
+        )}\n\n${printCallWithArray(
+          `const ${phoneNumberUtilsVariableName}`,
+          basename(CREATE_PHONE_NUMBER_UTILS_FOLDER_PATH),
+          arr2,
+        )}\n\nexport default ${phoneNumberUtilsVariableName};`,
       );
     }
 
     await addFile(
       CONSTANTS_FILE_PATH,
-      `${INTERNAL}export const MAX_CALLING_CODE_LENGTH=${longestCallingCode};\n\n${INTERNAL}export const MAX_NUMBER_LENGTH=${longestNumber};\n\n${INTERNAL}export const MASK_SYMBOL='${MASK_SYMBOL}';\n\n${formatsFile}`,
+      [
+        `${INTERNAL}export const MAX_CALLING_CODE_LENGTH = ${longestCallingCode};`,
+        `${INTERNAL}export const MAX_NUMBER_LENGTH = ${longestNumber};`,
+        `${INTERNAL}export const MASK_SYMBOL = '${MASK_SYMBOL}';`,
+        // sorted by format so the file only changes when a format does, not when
+        // the order countries happened to be visited in changes - the names are
+        // content hashes, so they carry no useful order of their own
+        ...Array.from(formatsVariables)
+          .sort(([, a], [, b]) => (a < b ? -1 : 1))
+          .map(
+            ([name, format]) =>
+              `${INTERNAL}export const ${name} = '${format}';`,
+          ),
+      ].join('\n\n'),
     );
 
     if (files.length) {
-      const date = new Date().toISOString().split('T')[0];
+      const baseSHA = context.sha;
 
-      const newBranch = `action/metadata/${date}`;
-
-      const baseSHA = github.context.sha;
-
-      await octokit.git.createRef({
-        ...myRepo,
-        ref: `refs/heads/${newBranch}`,
-        sha: baseSHA,
-      });
-
+      // commits straight onto the base branch - the sync is fully automatic, so
+      // there is no PR for anyone to review
       await octokit.git.updateRef({
         ...myRepo,
-        ref: `heads/${newBranch}`,
+        ref: `heads/${baseBranch}`,
         sha: (
           await octokit.git.createCommit({
             ...myRepo,
@@ -577,25 +667,14 @@ async function run(): Promise<void> {
           })
         ).data.sha,
       });
-
-      await octokit.issues.addLabels({
-        ...myRepo,
-        issue_number: (
-          await octokit.pulls.create({
-            ...myRepo,
-            title: `[${date}] Update Phone Number Data`,
-            body: 'Updated metadata to last version',
-            head: newBranch,
-            base: baseBranch,
-          })
-        ).data.number,
-        labels: ['auto generated'],
-      });
     }
 
-    core.info(`updated ${files.length} files`);
-  } catch (error: any) {
-    core.setFailed(error.message);
+    // the caller releases only when something actually changed
+    setOutput('updated', files.length);
+
+    info(`updated ${files.length} files`);
+  } catch (error) {
+    setFailed(error instanceof Error ? error.message : String(error));
   }
 }
 

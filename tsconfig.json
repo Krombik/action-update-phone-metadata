@@ -1,14 +1,10 @@
 {
   "compilerOptions": {
-    "outDir": "./lib",
-    "rootDir": "./src",
-    "module": "commonjs",
-    "target": "es6",
+    "module": "esnext",
+    "target": "es2022",
     "lib": ["dom", "esnext"],
-    "moduleResolution": "node",
-    "jsx": "react",
-    "sourceMap": true,
-    "declaration": true,
+    "moduleResolution": "bundler",
+    "noEmit": true,
     "esModuleInterop": true,
     "noImplicitReturns": false,
     "noImplicitThis": true,
@@ -21,6 +17,6 @@
     "stripInternal": true,
     "types": ["node"]
   },
-  "include": ["src"],
+  "include": ["src", "tsdown.config.ts"],
   "exclude": ["node_modules", "build", "example"]
 }

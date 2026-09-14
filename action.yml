@@ -19,6 +19,9 @@ inputs:
     required: true
   phone-number-validation-patterns-folder-path:
     required: true
+outputs:
+  updated:
+    description: 'how many files the sync changed - 0 means the metadata was already up to date'
 runs:
-  using: 'node16'
+  using: 'node24'
   main: 'dist/index.js'
