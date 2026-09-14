@@ -1,6 +1,6 @@
 {
   "name": "action-update-phone-metadata",
-  "version": "1.0.0",
+  "version": "6.0.0",
   "private": true,
   "description": "",
   "main": "dist/index.js",
